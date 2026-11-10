@@ -5060,8 +5060,13 @@ const GH_EXT={'image/png':'png','image/jpeg':'jpg','image/gif':'gif','image/webp
    現在匯出時逐位飼主重新產生內容：已公開的圖沿用 img/ 裡那張；其他（只給飼主看的原圖）每張用自己的隨機金鑰加密成 img/<id>.bin，金鑰和網址（gcm:路徑:金鑰:類型）一起放進用飼主鑰匙加密的內容。
    這樣 GitHub 上看得到檔案也打不開圖，一位飼主也打不開別人的圖，維持「沒有鑰匙的人看不到」。 */
 const GH_B64U=u=>okB64(u).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-async function ghSealImg(blob){const raw=crypto.getRandomValues(new Uint8Array(32));const iv=crypto.getRandomValues(new Uint8Array(12));const key=await crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt']);
- const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,await blob.arrayBuffer()));const data=new Uint8Array(12+ct.length);data.set(iv);data.set(ct,12);return{data,key:GH_B64U(raw)};}
+/* 第 176 版：飼主圖片的金鑰與 iv 由「站內祕密種子（STORE.ghSeed，只存在 priv/meta）＋圖片內容雜湊」算出，同一張圖每次匯出得到完全一樣的 .bin，
+   上傳 GitHub 時沒變的圖不會被當成改過（以前每次隨機，每次都像全部重傳）。圖一換內容雜湊就變，金鑰也跟著換；沒有種子的人推不出金鑰。 */
+function ghSeed(){if(!/^[0-9a-f]{64}$/.test(STORE.ghSeed||'')){STORE.ghSeed=hexOf(crypto.getRandomValues(new Uint8Array(32)));try{save();}catch(e){console.error(e);}}return STORE.ghSeed;}
+async function ghSealImg(blob){const buf=new Uint8Array(await blob.arrayBuffer());const seed=ghSeed(),h=hexOf(sha256(buf));
+ const raw=new Uint8Array(hmac(seed,'key|'+h).match(/../g).map(x=>parseInt(x,16)));const iv=new Uint8Array(hmac(seed,'iv|'+h).match(/../g).slice(0,12).map(x=>parseInt(x,16)));
+ const key=await crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt']);
+ const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,buf));const data=new Uint8Array(12+ct.length);data.set(iv);data.set(ct,12);return{data,key:GH_B64U(raw)};}
 async function ghOwnerKeys(out,map,get,files,missing){const pool=new Map();let n=0;
  for(const w of STORE.owners){const K=w.key;if(!K||!K.k||!K.kid||!okReady())continue;let pl;try{pl=okPayload(w);}catch(e){console.error(e);continue;}const m2=new Map();
   for(const id of ghBlobIds([pl])){if(map.has(id)){m2.set(id,map.get(id));continue;}
@@ -5218,13 +5223,13 @@ async function idbBoot(){IDB.db=await idbOpen();if(!IDB.db){IDB.ready=true;retur
 
 /* ---- 雲端文件（只有擁有者讀寫） ---- */
 function chunkBy(items,maxBytes,maxN){const out=[];let cur=[],sz=0;items.forEach(x=>{const b=JSON.stringify(x).length*1.2+8;if(cur.length&&(sz+b>maxBytes||cur.length>=maxN)){out.push(cur);cur=[];sz=0;}cur.push(x);sz+=b;});if(cur.length)out.push(cur);return out;}
-function privExtDocs(m){m.set('priv/meta',{id:'meta',wear:STORE.wear,secret:STORE.secret,show:STORE.show,accSub:STORE.accSub||[],bnTpl:STORE.bnTpl||[],accSpot:STORE.accSpot||null,certCfg:STORE.certCfg||null,certSeq:STORE.certSeq||{},ecoUse:STORE.ecoUse||{},tryPv:STORE.tryPv||null,anim:STORE.anim||null,events:STORE.events||[],wmSeeded:1});STORE.wm.forEach(w=>m.set(`priv/st/wm/${encSeg(w.id)}`,w));(STORE.dobj||[]).forEach(w=>m.set(`priv/st/dobj/${encSeg(w.id)}`,w));(STORE.dtpl||[]).forEach(w=>m.set(`priv/st/dtpl/${encSeg(w.id)}`,w));
+function privExtDocs(m){m.set('priv/meta',{id:'meta',wear:STORE.wear,secret:STORE.secret,show:STORE.show,accSub:STORE.accSub||[],bnTpl:STORE.bnTpl||[],accSpot:STORE.accSpot||null,certCfg:STORE.certCfg||null,certSeq:STORE.certSeq||{},ecoUse:STORE.ecoUse||{},tryPv:STORE.tryPv||null,anim:STORE.anim||null,events:STORE.events||[],ghSeed:STORE.ghSeed||'',wmSeeded:1});STORE.wm.forEach(w=>m.set(`priv/st/wm/${encSeg(w.id)}`,w));(STORE.dobj||[]).forEach(w=>m.set(`priv/st/dobj/${encSeg(w.id)}`,w));(STORE.dtpl||[]).forEach(w=>m.set(`priv/st/dtpl/${encSeg(w.id)}`,w));
  STORE.owners.forEach(w=>m.set(`priv/st/own/${encSeg(w.id)}`,w));STORE.acc.forEach(a=>m.set(`priv/st/acc/${encSeg(a.id)}`,a));
  chunkBy([...STORE.inst].sort((a,b)=>a.iid<b.iid?-1:1),180000,400).forEach((c,i)=>{const id='c'+String(i).padStart(3,'0');m.set(`priv/st/inst/${id}`,{id,items:c});});
  const byM={};STORE.ledger.forEach(e=>{const ym=String(e.t||'').slice(0,7).replace('-','')||'000000';(byM[ym]=byM[ym]||[]).push(e);});
  Object.keys(byM).forEach(ym=>chunkBy(byM[ym],180000,1500).forEach((c,i)=>{const id=ym+(i?'-'+String(i+1).padStart(2,'0'):'');m.set(`priv/st/log/${id}`,{id,items:c});}));}
 async function cloudLoadExt(db){const ext={};const last=(p,v)=>CLOUD.last.set(p,stable(v));
- const mt=await dbTry(()=>db.doc('priv/meta').get());if(mt.exists){const d=mt.data();last('priv/meta',d);ext.wear=d.wear;ext.secret=d.secret;if(Array.isArray(d.accSub))ext.accSub=clone(d.accSub);if(Array.isArray(d.bnTpl))ext.bnTpl=clone(d.bnTpl);if(d.accSpot&&typeof d.accSpot==='object')ext.accSpot=clone(d.accSpot);if(d.certCfg&&typeof d.certCfg==='object')ext.certCfg=clone(d.certCfg);if(d.certSeq&&typeof d.certSeq==='object')ext.certSeq=clone(d.certSeq);if(d.ecoUse&&typeof d.ecoUse==='object')ext.ecoUse=clone(d.ecoUse);if(d.tryPv&&typeof d.tryPv==='object')ext.tryPv=clone(d.tryPv);if(d.anim&&typeof d.anim==='object')ext.anim=clone(d.anim);if(Array.isArray(d.events))ext.events=clone(d.events);if(d.show)ext.show=clone(d.show);if(d.wmSeeded){ext.wmSeeded=1;const wd=await getAll('priv/st/wm');wd.forEach(x=>last(x.path,x.data));ext.wm=wd.map(x=>clone(x.data));}}
+ const mt=await dbTry(()=>db.doc('priv/meta').get());if(mt.exists){const d=mt.data();last('priv/meta',d);ext.wear=d.wear;ext.secret=d.secret;if(Array.isArray(d.accSub))ext.accSub=clone(d.accSub);if(Array.isArray(d.bnTpl))ext.bnTpl=clone(d.bnTpl);if(d.accSpot&&typeof d.accSpot==='object')ext.accSpot=clone(d.accSpot);if(d.certCfg&&typeof d.certCfg==='object')ext.certCfg=clone(d.certCfg);if(d.certSeq&&typeof d.certSeq==='object')ext.certSeq=clone(d.certSeq);if(d.ecoUse&&typeof d.ecoUse==='object')ext.ecoUse=clone(d.ecoUse);if(d.tryPv&&typeof d.tryPv==='object')ext.tryPv=clone(d.tryPv);if(d.anim&&typeof d.anim==='object')ext.anim=clone(d.anim);if(Array.isArray(d.events))ext.events=clone(d.events);if(typeof d.ghSeed==='string'&&d.ghSeed)ext.ghSeed=d.ghSeed;if(d.show)ext.show=clone(d.show);if(d.wmSeeded){ext.wmSeeded=1;const wd=await getAll('priv/st/wm');wd.forEach(x=>last(x.path,x.data));ext.wm=wd.map(x=>clone(x.data));}}
  const dob=await getAll('priv/st/dobj');dob.forEach(d=>last(d.path,d.data));ext.dobj=dob.map(d=>clone(d.data));
  const dtp=await getAll('priv/st/dtpl');dtp.forEach(d=>last(d.path,d.data));ext.dtpl=dtp.map(d=>clone(d.data));
  const ow=await getAll('priv/st/own');ow.forEach(d=>last(d.path,d.data));ext.owners=ow.map(d=>clone(d.data));
@@ -12600,8 +12605,9 @@ function rmFrameData(rig,P,i,L){const R=rmCfg();const t=i/L;const TAU=Math.PI*2;
   if(+m.pf){const n=Math.max(1,Math.min(60,Math.round((+m.pf)*(c.amp==null?1:+c.amp))));const spd=Math.max(1,Math.round(+m.pspd||1));const fy=rig.floorY||H;const rnd=amSeed(q.t.p.k||'p');copies=[];
    for(let k=0;k<n;k++){const x0=rnd()*Math.max(1,W-bw)-bb[0],ph=rnd();const y=fy-((ph+t*spd)%1)*(fy+bh)-bb[1];const wob=(+m.pamp||0)*2*Math.sin(TAU*(t*spd+ph));copies.push(mMul(mT(x0+wob,y),base));}}
   const fx=!!(m.glow||m.spark);const mask=fx?new Uint8Array(W*H):null;
+  /* 第 178 版：P.clipOf（棲息地圖層）＝這一層可以畫的範圍 [x0,y0,x1,y1]，範圍外不畫（缸體外） */const CR=P.clipOf?P.clipOf(q):null;const outCR=(x,y)=>!!CR&&(x<CR[0]||x>=CR[2]||y<CR[1]||y>=CR[3]);
   for(const M of copies){const Mi=mInv(M);const mg=Math.ceil(Math.abs(bendA))+2;const xs=[],ys=[];[[bb[0]-mg,bb[1]-mg],[bb[2]+mg,bb[1]-mg],[bb[0]-mg,bb[3]+mg],[bb[2]+mg,bb[3]+mg]].forEach(([x,y])=>{xs.push(M[0]*x+M[2]*y+M[4]);ys.push(M[1]*x+M[3]*y+M[5]);});
-   const X0=Math.max(0,Math.floor(Math.min(...xs))),X1=Math.min(W-1,Math.ceil(Math.max(...xs))),Y0=Math.max(0,Math.floor(Math.min(...ys))),Y1=Math.min(H-1,Math.ceil(Math.max(...ys)));
+   let X0=Math.max(0,Math.floor(Math.min(...xs))),X1=Math.min(W-1,Math.ceil(Math.max(...xs))),Y0=Math.max(0,Math.floor(Math.min(...ys))),Y1=Math.min(H-1,Math.ceil(Math.max(...ys)));if(CR){X0=Math.max(X0,Math.ceil(CR[0]));X1=Math.min(X1,Math.ceil(CR[2])-1);Y0=Math.max(Y0,Math.ceil(CR[1]));Y1=Math.min(Y1,Math.ceil(CR[3])-1);}
    for(let y=Y0;y<=Y1;y++)for(let x=X0;x<=X1;x++){if(chk&&(x+y)%2)continue;let u=Mi[0]*x+Mi[2]*y+Mi[4],v=Mi[1]*x+Mi[3]*y+Mi[5];
     if(bendA){const dn=Math.min(1,Math.max(0,((u-q.pv[0])*q.ux+(v-q.pv[1])*q.uy)/(q.lm||1)));const off=bendA*Math.pow(dn,1.6)*Math.sin(TAU*(t-lag-wv*dn));u+=off*q.uy;v-=off*q.ux;}
     let r,g,b,a;
@@ -12615,13 +12621,13 @@ function rmFrameData(rig,P,i,L){const R=rmCfg();const t=i/L;const TAU=Math.PI*2;
     const A=a/255,dA=od[o+3]/255,oA=A+dA*(1-A);if(oA<=0)continue;od[o]=(r*A+od[o]*dA*(1-A))/oA;od[o+1]=(g*A+od[o+1]*dA*(1-A))/oA;od[o+2]=(b*A+od[o+2]*dA*(1-A))/oA;od[o+3]=oA*255;}}
   if(m.glow&&mask){const G=m.glow;const col=amHex(G.c);const rr=Math.max(1,Math.round((+G.s||2)*(px?1:W/176)));const ga=Math.max(0,Math.min(1,(+G.a||.8)*(1-(+G.pulse||0)*(.5+.5*s))));
    if(ga>.05){let x0=W,y0=H,x1=-1,y1=-1;for(let k=0;k<mask.length;k++)if(mask[k]){const x=k%W,y=(k/W)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
-    if(x1>=0)for(let y=Math.max(0,y0-rr);y<=Math.min(H-1,y1+rr);y++)for(let x=Math.max(0,x0-rr);x<=Math.min(W-1,x1+rr);x++){const o=(y*W+x)*4;if(od[o+3])continue;let dmin=99;
+    if(x1>=0)for(let y=Math.max(0,y0-rr);y<=Math.min(H-1,y1+rr);y++)for(let x=Math.max(0,x0-rr);x<=Math.min(W-1,x1+rr);x++){const o=(y*W+x)*4;if(od[o+3]||outCR(x,y))continue;let dmin=99;
      for(let j=-rr;j<=rr&&dmin>1;j++){const Y=y+j;if(Y<0||Y>=H)continue;for(let ii=-rr;ii<=rr;ii++){const X=x+ii;if(X<0||X>=W)continue;if(mask[Y*W+X]){const d=Math.hypot(ii,j);if(d<dmin)dmin=d;}}}
      if(dmin>rr)continue;let A=ga*(1-(dmin-1)/(rr+.5));if(px){if(A<.25||(A<.6&&(x+y)%2))continue;A=1;}od[o]=col[0];od[o+1]=col[1];od[o+2]=col[2];od[o+3]=Math.round(A*255);}}}
   if(m.spark&&mask){const Sp=m.spark;const col=amHex(Sp.c);const n=Math.max(1,Math.min(40,Math.round(+Sp.n||6)));const spd=Math.max(1,Math.round(+Sp.spd||1));const pts=[];for(let k=0;k<mask.length;k+=7)if(mask[k])pts.push(k);
    if(pts.length){const rnd=amSeed((q.t.p.k||'s')+'*');const sz=px?1:Math.max(2,Math.round(W/200));const range=H*.12;
     for(let k=0;k<n;k++){const p0=pts[Math.floor(rnd()*pts.length)],ph=rnd();const pr=(ph+t*spd)%1;const x=p0%W,y=Math.round(((p0/W)|0)-pr*range);const A=Math.sin(Math.PI*pr);if(px&&A<.4)continue;
-     for(let j=0;j<sz;j++)for(let ii=0;ii<sz;ii++){const X=x+ii,Y=y+j;if(X<0||Y<0||X>=W||Y>=H)continue;const o=(Y*W+X)*4;const a0=px?1:A;od[o]=col[0]*a0+od[o]*(1-a0);od[o+1]=col[1]*a0+od[o+1]*(1-a0);od[o+2]=col[2]*a0+od[o+2]*(1-a0);od[o+3]=Math.max(od[o+3],Math.round(255*a0));}}}}});
+     for(let j=0;j<sz;j++)for(let ii=0;ii<sz;ii++){const X=x+ii,Y=y+j;if(X<0||Y<0||X>=W||Y>=H||outCR(X,Y))continue;const o=(Y*W+X)*4;const a0=px?1:A;od[o]=col[0]*a0+od[o]*(1-a0);od[o+1]=col[1]*a0+od[o+1]*(1-a0);od[o+2]=col[2]*a0+od[o+2]*(1-a0);od[o+3]=Math.max(od[o+3],Math.round(255*a0));}}}}});
  if(px&&!P.noOutline){const ol=+rmCfg().px.ol;const a=od;const ring=[];for(let y=0;y<H;y++)for(let x=0;x<W;x++){const o=(y*W+x)*4;if(a[o+3])continue;let n=0,r=0,g=0,b=0;
    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=W||Y>=H)return;const q=(Y*W+X)*4;if(a[q+3]){n++;r+=a[q];g+=a[q+1];b+=a[q+2];}});
    if(n)ring.push([o,r/n*ol,g/n*ol+6,b/n*ol+24]);}ring.forEach(([o,r,g,b])=>{a[o]=r;a[o+1]=g;a[o+2]=b;a[o+3]=255;});}
@@ -13049,7 +13055,7 @@ async function rmWallAnim(hab,size,mode,L,off,cuts){off=off||new Set();cuts=(Arr
  if(!WR){const W_=await rmWall(hab,size,mode);return{W_,wall:null,groups:[...cuts.map(()=>null),null],plan:null,G:amGeo(size,hab),back:null,front:null};}
  const R=rmCfg();const ck=JSON.stringify(['v84',hab,size,mode,L,R.hab[hab]||{},R.px,R.box,animMat(),[...off].sort(),cuts]);if(AM_WALLA.has(ck))return AM_WALLA.get(ck);
  const vis=q=>!off.has('wl:'+q.lid);const grp=q=>{if(q.clip)return-1;let g=0;while(g<cuts.length&&q.z>=cuts[g])g++;return g;};
- const make=g=>{if(!WR.plan.some(q=>vis(q)&&grp(q)===g))return null;const P={plan:WR.plan.slice().sort((a,b)=>a.z-b.z),foot:size,root:null,eye:null,closed:null,noOutline:true,filter:q=>vis(q)&&grp(q)===g};const fr=[];
+ const make=g=>{if(!WR.plan.some(q=>vis(q)&&grp(q)===g))return null;const P={plan:WR.plan.slice().sort((a,b)=>a.z-b.z),foot:size,root:null,eye:null,closed:null,noOutline:true,filter:q=>vis(q)&&grp(q)===g,clipOf:q=>amLayerClip(WR.G,q,hab)};const fr=[];
   for(let i=0;i<L;i++){const c=rmCanvas(WR.rig.W,WR.rig.H);c.getContext('2d').putImageData(rmFrameData(WR.rig,P,i,L),0,0);fr.push(c);}return fr;};
  const groups=[];for(let g=0;g<=cuts.length;g++)groups.push(make(g));
  const res={W_:WR.W_,wall:make(-1),groups,plan:WR.plan,G:WR.G,v1:WR.v1,back:null,front:null};AM_WALLA.set(ck,res);if(AM_WALLA.size>6)AM_WALLA.delete(AM_WALLA.keys().next().value);return res;}
@@ -13102,7 +13108,7 @@ async function amRoomFrames(ind,mode,withCreature,fid,opt){/* 第 120 版：allo
     原本所有站著的圖層都在同一個平面（整組的位置），深度只決定前後遮擋，轉動時前面的草還是跟著背景走。正面看（不轉動）時畫面不變 */
  const WR3=tb?await rmWallRig(code,S,mode):null;const LY=WR3?(WA.plan||[]).filter(q=>!q.clip&&!off.has('wl:'+q.lid)).map(q=>{const z=q.z;/* 第 101 版：平面放在圖層底部所在的地面深度（q.v） */return{q,z,Z:amV3Zof(G,Math.min(1,q.v!=null?q.v:amFootV(z)))};}):[];
  const seq=[...LY.map((o,i)=>({k:'wl',i,z:o.z})),{k:'floor',z:fz,sp:1},{k:'ind',z:cz,sp:1},...[...fxB].map(b=>({k:'fx',b,z:b==='back'?.02:b==='front'?1.01:.5,sp:1}))].sort((a,b)=>a.z-b.z||(a.sp?-1:0)-(b.sp?-1:0));
- const PL=WR3?{plan:WR3.plan.slice().sort((a,b)=>a.z-b.z),foot:S,root:null,eye:null,closed:null,noOutline:true}:null;const lyPool=[];
+ const PL=WR3?{plan:WR3.plan.slice().sort((a,b)=>a.z-b.z),foot:S,root:null,eye:null,closed:null,noOutline:true,clipOf:q=>amLayerClip(G,q,code)}:null;const lyPool=[];
  const C3=tb?{W:Cw,H:Ch,S,px,hard:clearBg,bg:on('bg')&&!clearBg?bgCol:'',lw:px?1:Math.max(1,S/176),on:{rim:on('rim'),lines:on('lines')},cols:amFaceCols(W_),
   inner:amMix(R.box.bg&&R.box.bg!=='none'&&/^#[0-9a-f]{6}$/i.test(R.box.bg)?amHex(R.box.bg):W_.dark,W_.light,.22),innerA:px?1:.6,Zg,Zc,Zfx:tb?{back:amV3Zof(G,AM_FX_V.back),mid:amV3Zof(G,AM_FX_V.mid),front:amV3Zof(G,AM_FX_V.front)}:null,sp:sp.map(q=>q.k),seq,
   plate:on('plate')?amFramePlate(RP0,S,px,W_,false,true):null,border:on('frame')?amFramePlate(RP0,S,px,W_,true,false):null,own,water:WG0?{Yw:WG0.Yw,below:WG0.below,line:SF.water.p.line,light:wLight}:null}:null;let K0=null;
@@ -13306,7 +13312,7 @@ async function amHabFloorUp(code,file){try{const im=await decorImg(URL.createObj
   if(t.dataset.stuhabfloor){e.stopImmediatePropagation();const f=t.files&&t.files[0];if(f)amHabFloorUp(t.dataset.stuhabfloor,f);return;}},true);
  /* 預覽圖上的拖曳：在 window 先處理（第 84 版的拖曳不再觸發） */
  const coords=(cv,e)=>{const r=cv.getBoundingClientRect();const z=+cv.dataset.z||1;return[(e.clientX-r.left)*(cv.width/r.width)/z,(e.clientY-r.top)*(cv.height/r.height)/z,(cv.width/r.width)/z];};
- window.addEventListener('pointerdown',e=>{const cv=e.target&&e.target.id==='rm-cv'?e.target:null;if(cv&&amPanGrab(e))return;if(!cv||RM.pick||!RM.fr||UI.tab!=='studio')return;/* 第 112 版：凸點（加、選、拖曳）先處理 */if(typeof amC3Grab==='function'&&amC3Grab(e,cv))return;if(RM.busy)return;e.stopPropagation();e.preventDefault();const [X,Y,k]=coords(cv,e);const B=amBox(amViewCode());
+ window.addEventListener('pointerdown',e=>{const cv=e.target&&e.target.id==='rm-cv'?e.target:null;if(cv&&amPanGrab(e))return;if(!cv||RM.pick||!RM.fr||UI.tab!=='studio')return;/* 第 179 版：圖層的轉軸可以直接拖曳 */if(typeof amWlGrab==='function'&&amWlGrab(e,cv))return;/* 第 112 版：凸點（加、選、拖曳）先處理 */if(typeof amC3Grab==='function'&&amC3Grab(e,cv))return;if(RM.busy)return;e.stopPropagation();e.preventDefault();const [X,Y,k]=coords(cv,e);const B=amBox(amViewCode());
   /* 第 111 版：「只有個體」也能用視角工具（存在 __solo，不改棲息地） */if(STU.tool==='view'){const y0=amV3Box(amViewCode()).yaw;STU.drag={mode:'view',x0:e.clientX,y0:e.clientY,k,t0:amNum(B.tilt,AM_VIEW_DEF.tilt),p0:amNum(B.persp,AM_VIEW_DEF.persp),tilt:amNum(B.tilt,AM_VIEW_DEF.tilt),persp:amNum(B.persp,AM_VIEW_DEF.persp),yw0:y0,yaw:y0,dx:0,dy:0};amStuAnchorStart(STU.drag,RM.fr);}
   else{const prevSel=STU.sel;const hit=amHit2(RM.fr,X,Y);
    /* 第 172 版：手工具（房間、棲息地檢視） */if(STU.tool==='pan'&&amView()!=='ind'){STU.drag={mode:'pan',x0:e.clientX,y0:e.clientY,k,dx:0,dy:0,raw:0,hit,p0:(STU.pan||[0,0]).slice()};try{cv.setPointerCapture(e.pointerId);}catch(er){}return;}
@@ -13413,7 +13419,7 @@ function rmShow(){const cv=document.getElementById('rm-cv');if(!cv||!RM.fr)retur
   const v3=F.v3&&F.v3.cam&&!(d&&d.mode==='view');const mp=(X,Y,k)=>{if(!v3)return[X,Y];const pl=amV3Plane(F,k);return pl?amV3ToView(F,X,Y,pl):[X,Y];};
 
   /* 第 131 版：部位的轉軸（黃點）只在「設定轉軸」時顯示（使用者：點了圖層後黃點一直留著） */if(RM.pick&&!String(RM.pick).startsWith('wl:')&&F.plan)F.plan.plan.forEach(q=>{if(q.root)return;if(RM.pick!==q.t.p.k)return;{const [X,Y]=mp(F.ox+q.pv[0],F.oy+q.pv[1],'ind');dot(X*z,Y*z,RM.pick===q.t.p.k,'#ffcc00');}});
-  if((sel.startsWith('wl:')||String(RM.pick).startsWith('wl:'))&&F.wplan)F.wplan.forEach(q=>{if(sel!=='wl:'+q.lid&&RM.pick!=='wl:'+q.lid)return;{const [X,Y]=mp(q.pv[0],q.pv[1],'wl:'+q.lid);dot(X*z,Y*z,RM.pick==='wl:'+q.lid,'#33ccff');}});
+  /* 第 179 版：圖層的轉軸改畫在覆蓋層（amWlOverlay，1118），和部位的點位一樣有標籤、可拖曳、可隱藏 */
   /* 第 92 版：拖曳視角時用立體視角即時重畫；轉到正中間時出現對齊線 */
   const live=d&&d.mode==='view'?amV3Live(F,{tilt:d.tilt,persp:d.persp,yaw:d.yaw}):null;if(live)amStuAnchorLive(F,live.cam);
   if(live){x.clearRect(0,0,cv.width,cv.height);if(F.prevBg){x.fillStyle=F.prevBg;x.fillRect(0,0,cv.width,cv.height);}x.drawImage(live.c,0,0,cv.width,cv.height);x.save();
@@ -13426,7 +13432,7 @@ function rmShow(){const cv=document.getElementById('rm-cv');if(!cv||!RM.fr)retur
   const b=amSelBox(F,sel);if(b&&v3){const pl=sel;const pts=[[b[0],b[1]],[b[2]+1,b[1]],[b[2]+1,b[3]+1],[b[0],b[3]+1]].map(([X,Y])=>mp(X,Y,pl));oc.save();oc.setLineDash([5,4]);oc.lineWidth=2;oc.strokeStyle='#ff3366';oc.beginPath();pts.forEach(([X,Y],k)=>k?oc.lineTo(X*ozv,Y*ozv):oc.moveTo(X*ozv,Y*ozv));oc.closePath();oc.stroke();oc.restore();}
   else if(b){let ox=0,oy=0;if(d&&d.mode!=='view'){if(d.mode==='z'){oy=sel==='ind'&&F.G?d.dz*(F.G.yf-F.G.yb):0;}else{ox=d.mode==='y'?0:d.dx;oy=d.mode==='x'?0:d.dy;}}
    oc.save();oc.setLineDash([5,4]);oc.lineWidth=2;oc.strokeStyle='#ff3366';oc.strokeRect((b[0]+ox)*ozv+1,(b[1]+oy)*ozv+1,(b[2]-b[0]+1)*ozv-2,(b[3]-b[1]+1)*ozv-2);
-   if(d&&d.mode==='z'){oc.setLineDash([]);oc.fillStyle='rgba(0,0,0,.6)';oc.fillRect(4,4,160,22);oc.fillStyle='#fff';oc.font='12px system-ui,sans-serif';oc.fillText(`深度 ${Math.max(0,Math.min(1,d.z0+d.dz)).toFixed(2)}（0 最後、1 最前）`,10,19);}oc.restore();}/* 第 112 版：選取部位時畫出它的凸點／凹點 */if(!(d&&d.mode==='view')&&typeof amC3Overlay==='function')try{amC3Overlay(oc,F,ozv,fi);}catch(err){}if(sp)amSpinLabel(x,sp);if(!STU.c3edit&&!RM.pick&&!STU.flat)RM.i++;};
+   if(d&&d.mode==='z'){oc.setLineDash([]);oc.fillStyle='rgba(0,0,0,.6)';oc.fillRect(4,4,160,22);oc.fillStyle='#fff';oc.font='12px system-ui,sans-serif';oc.fillText(`深度 ${Math.max(0,Math.min(1,d.z0+d.dz)).toFixed(2)}（0 最後、1 最前）`,10,19);}oc.restore();}/* 第 112 版：選取部位時畫出它的凸點／凹點 */if(!(d&&d.mode==='view')&&typeof amC3Overlay==='function')try{amC3Overlay(oc,F,ozv,fi);}catch(err){}if(!(d&&d.mode==='view')&&typeof amWlOverlay==='function')try{amWlOverlay(oc,F,ozv,mp);}catch(err){}if(sp)amSpinLabel(x,sp);if(!STU.c3edit&&!RM.pick&&!STU.flat)RM.i++;};
  RM.draw=draw;draw();RM.t=setInterval(()=>{if(!document.getElementById('rm-cv')||UI.tab!=='studio'){clearInterval(RM.t);return;}if(!STU.drag)draw();},F.dur);cv.dataset.z=z;cv.classList.toggle('stu-drag',amView()!=='ind');amToolInfo();}
 function amToolInfo(){const el=document.getElementById('stu-toolinfo');if(!el)return;if(RM.pick){el.innerHTML='<b>設定轉軸</b>：在預覽圖上點轉軸要在的位置';return;}const t=AM_TOOLS.find(x=>x[0]===STU.tool)||AM_TOOLS[1];
  el.innerHTML=STU.tool==='view'&&amView()!=='ind'?H(t[2]):STU.sel?`選取：<b>${H(amSelName(STU.sel))}</b>　${amMovable(STU.sel)&&amView()!=='ind'?H(t[2]):'（可以在右邊調整）'}`:(amView()==='ind'?'點預覽圖上的部位來選取':amView()==='hab'?'點預覽圖上的物件來選取（棲息地圖層、地面）':'點預覽圖上的物件來選取（生物；再點一下生物＝選部位；棲息地圖層、地面）');}
@@ -13443,12 +13449,12 @@ function amLayersHtml(){const v=amView();const R=rmCfg();const off=amOff();const
  else if(code){const ctx=stuCtx();const items=amStackItems(ctx).slice().reverse();
   items.forEach(it=>{if(it.key==='ind'){if(ind)indRow(ctx.k==='hab');return;}
    if(it.key==='floor'){const hc=R.hab[code]||{};const f=hc.floor&&amFloor(hc.floor);out.push(row('floor',`${th(f&&f.img&&imgSrc(f.img))}<span>地面<br><span class="tiny muted">${f?H(f.n||''):'自動（碎石）'}</span></span><span class="chip">地面</span>`,{mv:1}));return;}
-   const l=it.l;out.push(row(it.key,`${th(l.img&&!l.gif&&imgSrc(l.img))}<span>${H(l.n||'圖層')}${l.gif?' <span class="tiny muted">GIF</span>':''}</span><span class="chip">${H(amMatName(l.mat))}</span>`,{mv:1}));});
+   const l=it.l;out.push(row(it.key,`${th(l.img&&!l.gif&&imgSrc(l.img))}<span>${H(l.n||'圖層')}${l.gif?' <span class="tiny muted">GIF</span>':''}</span>${amLayerDots(l)}<span class="chip">${H(amMatName(l.mat))}</span>`,{mv:1}));});
   const Ls=amHabLayers(code);const clips=Ls.map((l,i)=>({l,i})).filter(({l,i})=>amClipOf(l,i));
-  if(clips.length){out.push('<div class="lyr-g">貼在後牆</div>');clips.forEach(({l})=>out.push(row('wl:'+l.id,`${th(l.img&&!l.gif&&imgSrc(l.img))}<span>${H(l.n||'圖層')}</span><span class="chip">${H(amMatName(l.mat))}</span>`)));}}
+  if(clips.length){out.push('<div class="lyr-g">貼在後牆</div>');clips.forEach(({l})=>out.push(row('wl:'+l.id,`${th(l.img&&!l.gif&&imgSrc(l.img))}<span>${H(l.n||'圖層')}</span>${amLayerDots(l)}<span class="chip">${H(amMatName(l.mat))}</span>`)));}}
  const room=v==='ind'?'':`<div class="lyr-g">房間（輸出也會跟著改）</div><div class="stu-checks">${[['bg','背景'],['wall','後牆'],['sides','側牆倒影'],['water','水面'],['rim','牆的厚度'],['lines','牆角線'],['frame','外框'],['plate','名牌'],['bubbles','特效'],['shadow','影子'],['owner',TERMS.owner+' ID']].map(([a,b])=>`<label class="tiny st-chk"><input type="checkbox" data-stuoff="${a}"${off.has(a)?'':' checked'}>${b}</label>`).join('')}</div>`;
  const up=code&&v!=='ind'?`<div class="lyr-up"><label class="b mini imgadd" style="width:auto;height:auto;padding:5px 10px">上傳分層 PSD<input type="file" accept="image/*,.psd,image/vnd.adobe.photoshop" data-rmwall="${H(code)}" hidden></label><label class="g mini imgadd" style="width:auto;height:auto;padding:5px 10px">＋ PNG／GIF 圖層<input type="file" accept="image/*" data-rmlayer="${H(code)}" hidden></label><label class="g mini imgadd" style="width:auto;height:auto;padding:5px 10px">＋ 地面<input type="file" accept="image/*" data-stuhabfloor="${H(code)}" hidden></label></div>`:'';
- return`<div class="lyr-h"><b>圖層</b><span class="tiny muted">${v==='ind'?'':'前 ↑　後 ↓'}</span>${ind?'<span class="tiny muted lyr-leg" title="每個部位設定到哪裡：轉軸、動作、立體。藍色＝這隻自己調的，灰色＝模板或物種的">軸 動 體</span>':''}<button type="button" class="g mini" data-stu="pk|" style="margin-left:auto"${sel?'':' aria-pressed="true"'} title="不選任何東西＝場景設定">場景設定</button></div>
+ return`<div class="lyr-h"><b>圖層</b><span class="tiny muted">${v==='ind'?'':'前 ↑　後 ↓'}</span>${ind?'<span class="tiny muted lyr-leg" title="每個部位設定到哪裡：轉軸、動作、立體。藍色＝這隻自己調的，灰色＝模板或物種的">軸 動 體</span>':code&&amHabLayers(code).length?'<span class="tiny muted lyr-leg" title="每一層設定到哪裡：轉軸、動作、立體。藍色＝調過">軸 動 體</span>':''}<button type="button" class="g mini" data-stu="pk|" style="margin-left:auto"${sel?'':' aria-pressed="true"'} title="不選任何東西＝場景設定">場景設定</button></div>
  <div class="lyr-list">${out.join('')||'<p class="tiny muted">還沒有內容。</p>'}</div>${room}${up}`;}
 /* ---- 右：屬性 ---- */
 const amF=(lab,inner)=>`<label class="f">${lab}${inner}</label>`;
@@ -13460,16 +13466,16 @@ const amMatSel=(path,cur,def)=>`<select data-rmf="${H(path)}">${Object.entries(a
 const amOutChk=(k,n)=>`<label class="tiny st-chk" style="margin:0 0 6px"><input type="checkbox" data-stuoff="${H(k)}"${amOff().has(k)?'':' checked'}>下載與公開畫面包含這個${n}</label>`;
 const amMatBtn='<button type="button" class="g mini" data-stu="matopen">編輯材質庫…</button>';
 function amInspLayer(code,id){const R=rmCfg();const Ls=amHabLayers(code);const i=Ls.findIndex(l=>l.id===id);if(i<0)return'<p class="tiny muted">找不到這一層。</p>';const l=Ls[i];const base=!!l.full;/* 第 106 版：路徑用原本圖層清單（含地面圖層）裡的位置；Ls 不含地面圖層，用 i 會改到前面幾層（使用者回報：改雲的大小改到丘陵、改名改到別層） */const ri=((R.hab[code]||{}).layers||[]).findIndex(z=>z.id===id);const P=base?`hab.${code}.base`:`hab.${code}.layers.${ri}`;const m=animMat()[l.mat||'fixed']||{};const tw=l.tw||{};
- return`<div class="ins-h">${l.img&&!l.gif?`<img class="lyr-th" src="${H(imgSrc(l.img))}" alt="">`:''}${base?'<b>整張圖</b>':`<input class="s" data-rmf="${P}.n" value="${H(l.n||'')}" style="width:170px">`}</div>
- ${amOutChk('wl:'+l.id,'圖層')}<div class="chrh">動作</div><div class="row rm-f">${amF('材質',amMatSel(P+'.mat',l.mat,'fixed'))}${amMatBtn}</div>
- <div class="row rm-f">${amF('幅度',amSl(P+'.amp',l.amp,.1,0,3,1))}${amF('多延遲',amSl(P+'.lag',l.lag,.02,0,1,0))}${+m.drift?amF('方向',`<select data-rmf="${P}.dir"><option value="1"${+l.dir>=0?' selected':''}>往右</option><option value="-1"${+l.dir<0?' selected':''}>往左</option></select>`):''}</div>
- ${base?'':`<div class="row rm-f">${amF('跟著',`<select data-rmf="${P}.parent"><option value="">不跟著</option>${Ls.filter(z=>z!==l).map(z=>`<option value="${H(z.id)}"${l.parent===z.id?' selected':''}>${H(z.n||z.id)}</option>`).join('')}</select>`)}</div>`}
- 
- <div class="row rm-f">${amF('轉軸',`<span class="row" style="gap:4px"><button type="button" class="g mini" data-stu="wpick|${H(l.id)}"${RM.pick==='wl:'+l.id?' aria-pressed="true"':''}>${RM.pick==='wl:'+l.id?'點預覽圖…':'設定'}</button>${l.pv?`<button type="button" class="g mini" data-stu="wpvclr|${H(l.id)}">自動</button>`:''}</span>`)}</div>
- <div class="chrh">位置與深度</div><div class="row rm-f">${amF('X',amSl(P+'.ox',l.ox,.01,-1,1,0))}${amF('Y',amSl(P+'.oy',l.oy,.01,-1,1,0))}</div><div class="row rm-f">${amF('大小',amSl(P+'.sc',l.sc,.05,.1,4,1))}${amF('深度',`<span class="row" style="gap:4px;align-items:center">${amSl(P+'.z',l.z,.01,0,1,+amLz(l,i,Ls.length).toFixed(2))}${l.z!=null&&l.z!==''?amAuto(P+'.z'):''}</span>`)}</div>
- ${amSec('layadv','進階','抽動、半透明、厚度、偏轉',`<div class="row rm-f">${amF('抽動 位置',amSl(P+'.tw.at',tw.at!=null&&+tw.at>1?+tw.at/100:tw.at,.01,0,1,.5))}${amF('格數',amSl(P+'.tw.len',tw.len,1,0,48,0))}${amF('角度',amSl(P+'.tw.ang',tw.ang,1,-90,90,0))}</div><div class="row rm-f">${amF('半透明範圍（下限）',amSl(P+'.alo',l.alo,5,0,255,50))}${amF('（上限）',amSl(P+'.ahi',l.ahi,5,0,255,190))}</div><div class="row rm-f">${amF('厚度（往後牆）',amSl(P+'.th',l.th,.01,0,1,0))}${amClipOf(l,i)?'':amF('偏轉（度）',amSl(P+'.yw',l.yw,1,-75,75,0))}</div><label class="tiny st-chk"><input type="checkbox" data-stuclip="${H(code)}|${H(l.id)}"${amClipOf(l,i)?' checked':''}>貼在後牆（只畫在後牆範圍內）</label>`)}
- ${base?'':`<div class="row" style="margin-top:8px"><button type="button" class="x mini" data-rml="del|${H(code)}|${ri}">刪除這一層</button></div>`}
- ${amHelp(`深度 0 最後、1 最前，也可以用預覽圖上方的「Z 深度」拖曳；轉軸預設是這層底部中央。厚度：像壓克力立牌一樣往後牆長出側面（缸深的比例，0＝沒有厚度，和缸體厚度無關），轉動或擺動時看得到；側面不會蓋住後面圖層的正面。偏轉：繞這一層中央的垂直軸轉，正＝右邊往後牆、負＝左邊往後牆，像斜插進場景的招牌；底部仍站在地面上（貼在後牆的圖層沒有偏轉）。`)}`;}
+ /* 第 179 版：照個體部位的流程分成三張卡——轉軸 → 動作 → 立體（STU.ptab 和部位共用）；轉軸的點位在 1118 */
+ const mo=`<div class="row rm-f">${amF("材質",amMatSel(P+".mat",l.mat,"fixed"))}${amMatBtn}</div>${base?"":`<div class="row rm-f">${amF("跟著",`<select data-rmf="${P}.parent"><option value="">不跟著</option>${Ls.filter(z=>z!==l).map(z=>`<option value="${H(z.id)}"${l.parent===z.id?" selected":""}>${H(z.n||z.id)}</option>`).join("")}</select>`)}</div>`}
+  <div class="row rm-f">${amF("幅度",amSl(P+".amp",l.amp,.1,0,3,1))}${amF("多延遲",amSl(P+".lag",l.lag,.02,0,1,0))}${+m.drift?amF("方向",`<select data-rmf="${P}.dir"><option value="1"${+l.dir>=0?" selected":""}>往右</option><option value="-1"${+l.dir<0?" selected":""}>往左</option></select>`):""}</div>
+  ${amSec("laymoadv","進階","抽動、半透明、輸出",`<div class="row rm-f">${amF("抽動 位置",amSl(P+".tw.at",tw.at!=null&&+tw.at>1?+tw.at/100:tw.at,.01,0,1,.5))}${amF("格數",amSl(P+".tw.len",tw.len,1,0,48,0))}${amF("角度",amSl(P+".tw.ang",tw.ang,1,-90,90,0))}</div><div class="row rm-f">${amF("半透明範圍（下限）",amSl(P+".alo",l.alo,5,0,255,50))}${amF("（上限）",amSl(P+".ahi",l.ahi,5,0,255,190))}</div>${amOutChk("wl:"+l.id,"圖層")}${amHelp("幅度＝材質動作的倍數；跟著＝跟著另一層一起動（例如花跟著莖）；半透明範圍＝透明度介於兩數之間的地方，像素版打成網點。")}`)}`;
+ const d3=`<div class="chrh">位置與深度</div><div class="row rm-f">${amF("X",amSl(P+".ox",l.ox,.01,-1,1,0))}${amF("Y",amSl(P+".oy",l.oy,.01,-1,1,0))}</div><div class="row rm-f">${amF("大小",amSl(P+".sc",l.sc,.05,.1,4,1))}${amF("深度",`<span class="row" style="gap:4px;align-items:center">${amSl(P+".z",l.z,.01,0,1,+amLz(l,i,Ls.length).toFixed(2))}${l.z!=null&&l.z!==""?amAuto(P+".z"):""}</span>`)}</div>
+  <div class="chrh">立體</div><div class="row rm-f">${amF("厚度（往後牆）",amSl(P+".th",l.th,.01,0,1,0))}${amClipOf(l,i)?"":amF("偏轉（度）",amSl(P+".yw",l.yw,1,-75,75,0))}</div><div class="row rm-f">${amF("超出缸體",amOvSel(P,l.ov))}</div>
+  ${amSec("lay3dadv","進階","貼在後牆",`<label class="tiny st-chk"><input type="checkbox" data-stuclip="${H(code)}|${H(l.id)}"${amClipOf(l,i)?" checked":""}>貼在後牆（只畫在後牆範圍內）</label>`)}
+  ${amHelp(`深度 0 最後、1 最前，也可以用預覽圖上方的「Z 深度」拖曳。厚度：像壓克力立牌一樣往後牆長出側面（缸深的比例，0＝沒有厚度，和缸體厚度無關），轉動或擺動時看得到；側面不會蓋住後面圖層的正面。超出缸體：預設圖層不會超出缸體，動態時突出的部分也會隱藏；可以只讓上緣（例如長出水面的植物）或下緣超出，或完全不限制（沒有側牆的舞台不裁切）。偏轉：繞這一層中央的垂直軸轉，正＝右邊往後牆、負＝左邊往後牆，像斜插進場景的招牌；底部仍站在地面上（貼在後牆的圖層沒有偏轉）。`)}`;
+ return`<div class="ins-h">${l.img&&!l.gif?`<img class="lyr-th" src="${H(imgSrc(l.img))}" alt="">`:""}${base?"<b>整張圖</b>":`<input class="s" data-rmf="${P}.n" value="${H(l.n||"")}" style="width:170px">`}</div>${amPartTabs()}${amPane("pv",amWlPvHtml(code,l,P))}${amPane("mo",mo)}${amPane("3d",d3)}
+ ${base?"":`<div class="row" style="margin-top:8px"><button type="button" class="x mini" data-rml="del|${H(code)}|${ri}">刪除這一層</button></div>`}`;}
 /* 第 174 版：部位面板照工作順序分成三張卡——轉軸 → 動作 → 立體；常用的放基礎區，其他收進「進階」 */
 const amHelp=t=>`<details class="am-help"><summary>說明</summary><p class="tiny muted">${t}</p></details>`;
 const AM_PTABS=[['pv','轉軸'],['mo','動作'],['3d','立體']];
@@ -13531,7 +13537,7 @@ function amMatModal(){if(!STU.matOpen)return'';const A=animMat();const tab=STU.m
 function renderStudio(){const el=document.getElementById('tab-studio');if(!el)return;if(!rmOwner()){el.innerHTML='<div class="panel">動畫工作室只在後台使用。</div>';return;}animCfg();rmCfg();
  const y0=typeof window!=='undefined'?window.scrollY:0;if((STU.kind==='mat'||STU.kind==='floor')&&STU._lg)STU.kind=JSON.parse(STU._lg)[0];amLegacyIn();amLegacyOut();const ind=stuCurInd();RM.id=ind?ind.id:'';const v=amView();
  if(STU.sel.startsWith('part:')&&!ind)STU.sel='';if(v==='ind'&&STU.sel&&!(STU.sel==='ind'||STU.sel.startsWith('part:')))STU.sel='';if(v==='hab'&&!amPreviewOther()&&(STU.sel==='ind'||STU.sel.startsWith('part:')))STU.sel='';
- /* 第 171 版：離開部位面板就結束編輯點位，生物恢復動態（實測：切走後會一直凍住、按鈕也不見） */if(STU.c3edit&&!STU.sel.startsWith('part:')){STU.c3edit=false;STU.c3pick=null;}if(typeof stuDraftCheck==='function'&&!STUD.checked)stuDraftCheck();
+ /* 第 171 版：離開部位面板就結束編輯點位，生物恢復動態（實測：切走後會一直凍住、按鈕也不見） *//* 第 179 版：棲息地圖層的轉軸也算（wl:） */if(STU.c3edit&&!STU.sel.startsWith('part:')&&!STU.sel.startsWith('wl:')){STU.c3edit=false;STU.c3pick=null;}if(typeof stuDraftCheck==='function'&&!STUD.checked)stuDraftCheck();
  const ls=el.querySelector('.lyr-list'),lsc=ls?ls.scrollTop:0;const ins=el.querySelector('.stu2-insp'),isc=ins?ins.scrollTop:0;
  const L=stuInds();const inds=`<select data-stuind="1" aria-label="個體">${STU.v==='room'?`<option value=""${ind?'':' selected'}>（不放個體）</option>`:''}${typeof amPoseOpts==='function'?amPoseOpts(STU.id):''}${L.length&&typeof amPoseOpts==='function'&&amPoseOpts('')?'<optgroup label="個體">':''}${L.map(i=>`<option value="${H(i.id)}"${ind&&ind.id===i.id?' selected':''}>${H(i.id)}${i.nick?' '+H(i.nick):''}</option>`).join('')}${L.length&&typeof amPoseOpts==='function'&&amPoseOpts('')?'</optgroup>':''}</select>`;
  const habs=`<select data-stuhab="1" aria-label="棲息地">${stuHabList().map(h=>`<option value="${H(h.code)}"${STU.hab===h.code?' selected':''}>${H(h.code)} ${H(h.name)}${habOk(h.code)?'':'（這個物種未入住）'}</option>`).join('')}</select>`;
@@ -15748,6 +15754,56 @@ async function amTplPush(src,ks,tg){const R=rmCfg();const pose=amPoseOfInd(src);
   if(a==='restore'){amConfirm({title:'還原這一版？',body:'現在的內容會先留一份，還原後也能再還原回來。',ok:'還原'}).then(ok=>{if(!ok)return;if(amTplRestore(x,+y)){save();renderStudio();rmSoon();toast('已還原');}});}},true);
  document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset)return;if(t.dataset.amtk!=null){STU.amtSel=new Set([...document.querySelectorAll('#tab-studio input[data-amtk]:checked')].map(c=>c.dataset.amtk));if(STU.amt==='update'||STU.amt==='push'){e.stopImmediatePropagation();renderStudio();}return;}if(t.dataset.amtup!=null){e.stopImmediatePropagation();STU.amtUp=t.value;renderStudio();return;}if(t.dataset.amtt!=null){e.stopImmediatePropagation();if(!(STU.amtT instanceof Set))STU.amtT=new Set();if(t.checked)STU.amtT.add(t.dataset.amtt);else STU.amtT.delete(t.dataset.amtt);renderStudio();}},true);
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&STU.amt&&UI.tab==='studio'&&!document.querySelector('#am-confirm:not([hidden])')){e.stopPropagation();STU.amt='';renderStudio();}},true);})();
+/* 第 178 版：棲息地圖層預設不超出缸體——動態時偶爾突出缸體的部分也自動隱藏。
+   每一層可以另外設定 l.ov：''＝不超出（預設）、'top'＝上緣可以超出、'bot'＝下緣可以超出、'free'＝自由超出。
+   做法：圖層平面在自己的深度 Z（0＝前緣、dd＝後牆），缸體在這個深度的截面＝世界座標 x∈[0,dw]、y∈[0,dh]；
+   換回原本畫面的座標（amV3Un 的反算），rmFrameData 寫入這一層的像素時只寫在範圍內。立體畫法與平面畫法（展示廊）都經過這裡。
+   沒有側牆的舞台沒有缸體，不裁切。偏轉的圖層照沒偏轉時的平面裁切（近似）。 */
+const AM_LOV=[['','不超出缸體（預設）'],['top','上緣可以超出'],['bot','下緣可以超出'],['free','自由超出']];
+function amLayerOv(code,id){const h=(rmCfg().hab||{})[code]||{};const l=id==='base'?h.base:(h.layers||[]).find(x=>x.id===id);const v=l&&l.ov;return AM_LOV.some(([k])=>k===v)?v:'';}
+function amLayerClip(G,q,code){if(!G||!G.sides||!q)return null;const b=amV3Base(G);if(!b)return null;const ov=amLayerOv(code,q.lid);if(ov==='free')return null;
+ const Z=q.clip?b.dd:amV3Zof(G,Math.min(1,q.v!=null?q.v:amFootV(q.z)));const k=b.F/Math.max(1e-6,Z+b.D);
+ return[b.ox-b.dw/2*k,ov==='top'?-Infinity:b.hz+(b.E-b.dh)*k,b.ox+b.dw/2*k,ov==='bot'?Infinity:b.hz+b.E*k];}
+const amOvSel=(P,v)=>`<select data-rmf="${H(P)}.ov">${AM_LOV.map(([k,n])=>`<option value="${k}"${(v||'')===k?' selected':''}>${n}</option>`).join('')}</select>`;
+/* ================= 第 179 版（2026-11-10）：棲息地圖層照個體部位的流程 ================= */
+/* 使用者：棲息地的動畫工作室介面也要更新成和個體的流程一樣。
+   流程：點圖層 → 轉軸 → 動作 → 立體 → 儲存。圖層面板分三張卡（amInspLayer，1080；STU.ptab 和部位共用）。
+   左邊清單：每一層三個狀態點「軸 動 體」（amLayerDots，藍色＝調過；棲息地全站一份，沒有模板層所以沒有灰色）。
+   轉軸：和部位的點位一樣一列「顯示／在預覽上點／儲存」，微調收在下面；預覽上畫在覆蓋層、有標籤、可直接拖曳；
+   拖曳或微調時畫面停在第一格（STU.c3edit），按「儲存」或 Esc 恢復動態。開關鍵 'wl:<id>|pv'（STU.ptv，只影響預覽）。 */
+const AM_WL_COL='#33ccff';
+const AM_WL_MO={amp:1,lag:0,tw:null,parent:'',alo:null,ahi:null,dir:null};
+const AM_WL_3D={ox:0,oy:0,sc:1,z:null,th:0,yw:0,ov:'',clip:null};
+function amLayerDots(l){const set=D=>Object.keys(D).some(f=>{const v=l[f];if(v==null||v==='')return false;if(typeof v==='object')return Array.isArray(v)?v.length>0:Object.keys(v).length>0;return D[f]==null||String(v)!==String(D[f])&&+v!==+D[f];});
+ const a=Array.isArray(l.pv),b=!!(l.mat&&l.mat!=='fixed')||set(AM_WL_MO),c=set(AM_WL_3D);return`<span class="lyr-dots" aria-label="設定狀態">${[a,b,c].map(s=>`<i class="${s?'me':''}"></i>`).join('')}</span>`;}
+/* 目前的轉軸（這層圖片範圍的比例）；沒有自己指定時從預覽算出自動的位置 */
+const amWlQ=id=>{const F=RM.fr;return F&&(F.wplan||[]).find(q=>q.lid===id)||null;};
+function amWlPvNow(l){if(Array.isArray(l.pv))return[+l.pv[0],+l.pv[1]];const q=amWlQ(l.id);if(q&&q.rect&&q.rect.w&&q.rect.h)return[(q.pv[0]-q.rect.x)/q.rect.w,(q.pv[1]-q.rect.y)/q.rect.h];return[.5,1];}
+function amWlPvHtml(code,l,P){const key='wl:'+l.id+'|pv';const pk=RM.pick==='wl:'+l.id;const own=Array.isArray(l.pv);const v=amWlPvNow(l);const r3=x=>+(+x).toFixed(3);
+ return`<div class="chrh">點位</div><p class="tiny muted" style="margin:0 0 4px">在預覽上直接拖曳轉軸，或點「在預覽上點」；調整時畫面暫停。</p>
+ <div class="pt-row">${amPtEye(key)}<span class="pt-n"><b style="color:${AM_WL_COL}">●</b> 轉軸 <span class="tiny muted">${own?'自己指定':'自動'}</span></span><button type="button" class="g mini" data-stu="wpick|${H(l.id)}" aria-pressed="${pk}">${pk?'點預覽上的位置…':'在預覽上點'}</button>${amPtSave()}</div>
+ ${amPtFine('wl'+l.id,`<div class="row rm-f" style="align-items:center">${amF('左右',amSlider(`data-wlpv="0|${H(l.id)}"`,r3(v[0]),.01,-.5,1.5))}${amF('上下',amSlider(`data-wlpv="1|${H(l.id)}"`,r3(v[1]),.01,-.5,1.5))}${own?amAuto(P+'.pv'):'<span class="tiny muted">自動（這一層底部中央）</span>'}</div>`)}
+ ${amHelp('轉軸＝這一層擺動、彎曲時繞著轉的點（例如水草的根）。微調的 0／1＝這一層圖片的左右、上下邊緣。「顯示」只影響預覽，不改設定。')}`;}
+/* 平面座標 ↔ 預覽畫面座標（立體視角時經過相機） */
+function amWlView(u,v,id){const F=RM.fr;if(!F||!(F.v3&&F.v3.cam))return[u,v];const pl=amV3Plane(F,'wl:'+id);return pl?amV3ToView(F,u,v,pl):[u,v];}
+function amWlUnview(X,Y,id){const F=RM.fr;if(!F||!(F.v3&&F.v3.cam))return[X,Y];let u=X,v=Y;for(let n=0;n<16;n++){const p=amWlView(u,v,id);const ex=X-p[0],ey=Y-p[1];if(Math.abs(ex)+Math.abs(ey)<.02)break;const pu=amWlView(u+1,v,id),pv=amWlView(u,v+1,id);const a=pu[0]-p[0],b=pv[0]-p[0],c=pu[1]-p[1],d=pv[1]-p[1];const det=a*d-b*c;if(!isFinite(det)||Math.abs(det)<1e-9)break;u+=(d*ex-b*ey)/det;v+=(-c*ex+a*ey)/det;}return[u,v];}
+/* 覆蓋層：選取的圖層在「轉軸」卡、在預覽上點或拖曳時才顯示 */
+function amWlOverlay(x,F,z,mp){const sel=STU.sel||'';const pick=String(RM.pick||'');const id=pick.startsWith('wl:')?pick.slice(3):sel.startsWith('wl:')?sel.slice(3):'';if(!id||!F.wplan)return;const pk=pick==='wl:'+id;const dr=STU.wlDrag&&STU.wlDrag.id===id?STU.wlDrag:null;
+ if(!pk&&!dr&&(STU.pthide||!amPtShown()||amPtHid('wl:'+id+'|pv')))return;const q=F.wplan.find(o=>o.lid===id);if(!q)return;const p=dr?[dr.X,dr.Y]:mp(q.pv[0],q.pv[1],'wl:'+id);const X=p[0]*z,Y=p[1]*z;
+ x.save();x.fillStyle=pk||dr?'#ff3366':AM_WL_COL;x.strokeStyle='#000';x.lineWidth=1.5;x.beginPath();x.arc(X,Y,5,0,7);x.fill();x.stroke();x.restore();
+ const b=amSelBox(F,'wl:'+id);let rc=null;if(b){const P=[[b[0],b[1]],[b[2]+1,b[1]],[b[2]+1,b[3]+1],[b[0],b[3]+1]].map(([a,c])=>mp(a,c,'wl:'+id));rc=[Math.min(...P.map(o=>o[0]))*z,Math.min(...P.map(o=>o[1]))*z,Math.max(...P.map(o=>o[0]))*z,Math.max(...P.map(o=>o[1]))*z];}
+ AM_LABS.length=0;amLab('轉軸'+(Array.isArray((amLayerCfg(STU.hab,id)||{}).pv)?'':'（自動）'),X,Y,AM_WL_COL);amLabFlush(x,rc);}
+function amWlSetPv(id,u,v){const l=amLayerCfg(STU.hab,id);const q=amWlQ(id);if(!l||!q||!q.rect||!q.rect.w||!q.rect.h)return false;const r=[(u-q.rect.x)/q.rect.w,(v-q.rect.y)/q.rect.h];if(r[0]<-.5||r[0]>1.5||r[1]<-.5||r[1]>1.5){toast('請放在這一層上或旁邊');return false;}l.pv=[+r[0].toFixed(4),+r[1].toFixed(4)];save();return true;}
+/* 預覽上按下：按在轉軸上就開始拖曳（由 1060 的預覽操作先呼叫，比移動圖層先處理；空白鍵、手工具、中鍵仍是移動畫面）；處理了回傳 true */
+function amWlGrab(e,cv){if(UI.tab!=='studio'||!RM.fr||RM.busy||RM.pick||e.button!==0||STU.space||STU.tool==='view'||STU.tool==='pan'||STU.pthide)return false;const sel=STU.sel||'';if(!sel.startsWith('wl:')||!amPtShown()||amPtHid(sel+'|pv'))return false;const id=sel.slice(3);const q=amWlQ(id);if(!q)return false;
+  const r=cv.getBoundingClientRect();const z=+cv.dataset.z||1;const k=cv.width/r.width/z;const X=(e.clientX-r.left)*k,Y=(e.clientY-r.top)*k;const p=amWlView(q.pv[0],q.pv[1],id);if(Math.hypot(p[0]-X,p[1]-Y)>9*k)return false;
+  e.preventDefault();e.stopImmediatePropagation();STU.c3edit=true;STU.wlDrag={id,X:p[0],Y:p[1],x0:e.clientX,y0:e.clientY,moved:false};try{cv.setPointerCapture(e.pointerId);}catch(er){}if(RM.draw)RM.draw();return true;}
+(function(){if(typeof window==='undefined'||typeof document==='undefined')return;
+ window.addEventListener('pointermove',e=>{const d=STU.wlDrag;if(!d)return;e.stopImmediatePropagation();const cv=document.getElementById('rm-cv');if(!cv)return;const r=cv.getBoundingClientRect();const z=+cv.dataset.z||1;const k=cv.width/r.width/z;d.X=(e.clientX-r.left)*k;d.Y=(e.clientY-r.top)*k;d.moved=d.moved||Math.hypot(e.clientX-d.x0,e.clientY-d.y0)>=3;if(RM.draw)RM.draw();},true);
+ const up=e=>{const d=STU.wlDrag;if(!d)return;e.stopImmediatePropagation();STU.wlDrag=null;if(d.moved){const [u,v]=amWlUnview(d.X,d.Y,d.id);if(amWlSetPv(d.id,u,v)){renderStudio();rmSoon();return;}}if(RM.draw)RM.draw();};
+ window.addEventListener('pointerup',up,true);window.addEventListener('pointercancel',up,true);
+ /* 微調：左右、上下 */
+ document.addEventListener('input',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.wlpv==null)return;e.stopImmediatePropagation();const [a,id]=t.dataset.wlpv.split('|');const l=amLayerCfg(STU.hab,id);if(!l)return;const cur=amWlPvNow(l);cur[+a]=+(+t.value).toFixed(3);l.pv=[+cur[0].toFixed(4),+cur[1].toFixed(4)];const o=t.parentNode&&t.parentNode.querySelector('output');if(o)o.textContent=cur[+a].toFixed(2);STU.c3edit=true;save();rmSoon();},true);})();
 /* ================= 第 119 版（2026-11-02）：模擬養殖初步整合——未來商店輪播、養殖艙大入口、換裝與持有道具 ================= */
 /* 使用者要求（先大致重新定位，之後會全面重整）：
    1. 模擬養殖分頁：左欄維持原樣；艙室看板改成橫跨整個頁寬的三條圖卡輪播（飾品、棲息地、家具＝施工中），滑到定點時有對焦效果，背景是 WebGL 的未來商店格線。
@@ -16523,7 +16579,7 @@ const TAB_HELP={
  add('studio','<b>棲息地分層動畫</b>：棲息地的「牆面」分頁和個體的「部位動作」是同一種表格（材質、跟著、幅度、延遲、抽動、半透明範圍、轉軸，外加前景與方向）。還沒分層的棲息地也有「整張圖」一列；上傳分層 PSD 後每層各一列。棲息地區塊每個棲息地也有「這個棲息地的動畫分層圖」可以直接上傳或拖放 PSD。');
  add('studio','<b>自動對應規則</b>（材質庫 › 自動對應規則）：圖層或自訂部位名稱有這些關鍵字就自動選材質，森林、宇宙、陸地等不同棲息地都可以自己加規則。');
  add('studio','<b>牆面取色</b>：「像素與尺寸」預設「平均取色」（和示意圖相同：每格取平均色再減成 10 色，不打網點）；也可以改回「網點」。');
- add('studio','<b>怎麼開始</b>：上面選個體或姿勢模板 → 點左邊的部位 → 右邊照「轉軸、動作、立體」三張卡設定 → 按「儲存」。橫幅會寫正在編輯誰：打開個體只改這隻，要改模板就打開模板，或按橫幅的「改去編輯模板」。左邊部位的三個點是轉軸、動作、立體有沒有設定，藍色＝這隻自己調的，灰色＝模板或物種的。');
+ add('studio','<b>怎麼開始</b>：上面選個體或姿勢模板 → 點左邊的部位 → 右邊照「轉軸、動作、立體」三張卡設定 → 按「儲存」。橫幅會寫正在編輯誰：打開個體只改這隻，要改模板就打開模板，或按橫幅的「改去編輯模板」。左邊部位的三個點是轉軸、動作、立體有沒有設定，藍色＝這隻自己調的，灰色＝模板或物種的。棲息地也一樣：選棲息地 → 點左邊的圖層 → 照「轉軸、動作、立體」三張卡設定 → 按「儲存」；圖層的三個點藍色＝調過（棲息地全站共用一份）。');
  add('studio','<b>移動與縮放畫面</b>：隨時都可以按住空白鍵拖曳、兩指滑動或按住滑鼠中鍵拖曳來移動畫面，⌘／Ctrl＋滾輪或捏合以游標為中心縮放；不必切工具，也不必退出編輯點位。在「只有個體」拖視角時生物會留在原位，轉來看看也不算未儲存。');
  add('studio','<b>點位</b>：轉軸、最近點、凸點等都能各自顯示或隱藏（只影響預覽），在預覽上直接拖曳；按該列的「儲存」或 Esc，生物恢復動態。有其他未存項目時按鈕會寫「一併儲存 N 項」。工作室不自動寫入，但未儲存的變更會暫存在這台瀏覽器，當掉或關閉後回來可以恢復。');
  add('studio','<b>圖層的眼睛</b>只影響預覽；要讓下載與公開畫面不顯示某個部位，在屬性面板的「進階」取消「下載與公開畫面包含這個部位」。');
@@ -16581,7 +16637,7 @@ add('pub','<b>以'+TERMS.owner+'身分測試</b>：「以訪客身分預覽」�
 add('farm','<b>收起介面</b>：養殖艙與拍照的每個區塊，標題列右邊的 − 可以單獨收合；分頁旁的「收起介面」一鍵收起全部，再按「展開區塊」全部展開，預覽不會被擋住（記在這個瀏覽器）。');
 add('farm','<b>文字排版</b>：拍照時在圖層選文字圖層，可以調字級、行距、對齊、上下位置、橫直排與文字方塊的寬高（文字會照方塊換行）；字和圖形畫在一起的圖層（圓章、資料列）只能調字級；像素風格的文字是像素畫，沒有這組設定。按「重設」回到原本的樣子。');
 add('reg','<b>多位'+TERMS.owner+'</b>：個體的'+TERMS.owner+'欄位可以打字或從名冊選取多位（用頓號分隔也可以），第一位是主'+TERMS.owner+'，其他是共同'+TERMS.owner+'；名冊裡沒有的人會自動新增。共同'+TERMS.owner+'和主'+TERMS.owner+'一樣擁有個體（各自的鑰匙都拿得到），飾品跟著主'+TERMS.owner+'、不共用。按 ★ 可以換主'+TERMS.owner+'。');
-add('pub','<b>GitHub 公開版的'+TERMS.owner+'圖片</b>：匯出時'+TERMS.owner+'持有的個體、飾品、棲息地圖片會各自加密放進 zip（img/*.bin），只有持有鑰匙的人解鎖後看得到。');
+add('pub','<b>GitHub 公開版的'+TERMS.owner+'圖片</b>：匯出時'+TERMS.owner+'持有的個體、飾品、棲息地圖片會各自加密放進 zip（img/*.bin），只有持有鑰匙的人解鎖後看得到。圖片沒換的話，每次匯出的 .bin 內容都一樣，用 GitHub Desktop 或 git 上傳時只會傳有變動的檔案。');
 add('farm','<b>'+TERMS.owner+'的養殖艙</b>：養殖艙最下面設定'+TERMS.owner+'在公開頁的養殖艙能用的選項：哪些房間模板公開成「風格」（套用時長寬深不變）、轉動上限（全站一組：左右角度與上下的地面深度，從棲息地原本的視角算起）、左右搖擺（全站一組：預設幅度與速度、幅度與速度的上下限）。'+TERMS.owner+'只能放自己的個體到已持有的棲息地（要有鑰匙、棲息地要有圖），飾品只能用已持有的；拓建與造景先上鎖。佈置存在'+TERMS.owner+'自己的瀏覽器，雲端不存房間。');
 add('studio','<b>拉桿與選取</b>：小房間有範圍的數字都改成拉桿，右邊顯示目前的數字，放開後重畫預覽。圖層清單（動畫工作室、主視覺、水印、本期焦點的'+TERMS.tpl+'）再點一次已選取的圖層就取消選取。場景外框線預設關閉，要用時在圖層的「外框」打勾。');
  add('studio','<b>在預覽上移動</b>：先在圖層面板或預覽上選好物件，之後在預覽上任何地方拖曳都只移動它（按到別的圖層或透明處也一樣）；只點一下不拖曳，才會改選按到的物件。選「整組棲息地圖」時，上下拖曳是沿著地面往前／往後走，會依透視自動放大縮小。預覽上方有「還原／重做」（也可以按 Ctrl/⌘＋Z）。在動畫工作室裡連續調整時，0.9 秒內的修改會合併成一次存檔（也是一步還原），切換分頁時會立刻存。');
