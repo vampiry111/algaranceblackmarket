@@ -3315,6 +3315,8 @@ function v60Click(a,b,twoStep){
  if(a==='evDel'){const i=+b.dataset.i;const e=evList()[i];if(!e)return true;if(!twoStep('evdel'+i))return true;UI.confirm=null;if(e.img)dropAsset(e.img);evList().splice(i,1);save();renderPubCfg();return true;}
  if(a==='evImgDel'){const e=evList()[+b.dataset.i];if(e&&e.img){dropAsset(e.img);e.img=null;save();renderPubCfg();}return true;}
  return false;}
+function carStep(r){const c=r.firstElementChild;const gap=parseFloat(getComputedStyle(r).columnGap)||14;return c?c.getBoundingClientRect().width+gap:r.clientWidth;}
+function carGlow(r){const sec=r.closest('.spot');if(!sec)return;sec.classList.remove('sliding');void sec.offsetWidth;sec.classList.add('sliding');clearTimeout(CAR.glow.get(sec));CAR.glow.set(sec,setTimeout(()=>sec.classList.remove('sliding'),1100));}
 function gifDecode(buf,full){const L=window.GIFLIB;const g=L.parseGIF(buf);const fr=L.decompressFrames(g,true);if(!fr.length)throw new Error('GIF 沒有影格');
  const W=g.lsd.width,Hh=g.lsd.height;let k=full?1:Math.min(1,GIF_MAX_SIDE/Math.max(W,Hh));const n=Math.min(fr.length,GIF_MAX_FRAMES);while(!full&&W*Hh*k*k*4*n>350e6&&k>.1)k*=.8;
  const main=document.createElement('canvas');main.width=W;main.height=Hh;const mx=main.getContext('2d',{willReadFrequently:true});const pc=document.createElement('canvas');const px=pc.getContext('2d');
@@ -4012,7 +4014,8 @@ function pstOutHtml(){const perm=pstPerm();const rm=pstRoomOn();const R=PST.room
   <button type="button" class="b pod-shot ptry-dl" data-pst="dl">下載 ${gif?'GIF':'PNG'} <small>Download</small></button></div>`;}
 function pstEtb(){const box=document.getElementById('pst-cv');if(box){const old=box.querySelector('.pst-etb');if(old)old.remove();}pstLayersRefresh();}
 function pstRegen(){const R=PST.room;if(!R)return;R.px=POD.live;R.yaw=R.hasHab?podClamp(POD.cam.yaw,podLim().yaw):null;R.L={};R.P={};R.gen++;R.k=0;PST.sel='';pstShow();}
-async function pstReshoot(kind,part){const back=PST.back||{tryon:true,on:false};PST.back=back;const keep={off:PST.room?PST.room.off.slice():[]};await podShoot(kind);if(PST.room){PST.room.off=keep.off;if(part)PST.room.part=part;PST.back=back;if(keep.off.length||part){PST.room.L=part&&PST.room.L[part]?{[part]:PST.room.L[part]}:{};PST.room.gen++;}pstShow();}}
+async function pstReshoot(kind,part){/* 第 204 版：重拍會邊算邊讓出（頁面不卡），算好之前再點不重複重拍；預覽顯示等待游標 */if(PST.reshoot)return;PST.reshoot=true;const cv=document.getElementById('pst-cv');if(cv)cv.setAttribute('aria-busy','true');let ok=false;try{ok=await pstReshootRun(kind,part);}finally{PST.reshoot=false;const c2=document.getElementById('pst-cv');if(c2)c2.removeAttribute('aria-busy');}return ok;}
+async function pstReshootRun(kind,part){const back=PST.back||{tryon:true,on:false};PST.back=back;const keep={off:PST.room?PST.room.off.slice():[]};await podShoot(kind);if(PST.room){PST.room.off=keep.off;if(part)PST.room.part=part;PST.back=back;if(keep.off.length||part){PST.room.L=part&&PST.room.L[part]?{[part]:PST.room.L[part]}:{};PST.room.gen++;}pstShow();}}
 async function pstShowSet(k){const sh=pstShowing();const R=PST.room;const rm=pstRoomOn();
  if(k==='hab'){if(sh.hab){/* 只留個體 */if(!POD.live&&pstPod()&&ptryBody()){PST.src='try';PST.sel='';pstShow();return;}PST.room.part='ind';PST.sel='';pstShow();return;}
   if(rm&&R.hasHab){R.part='room';PST.sel='';pstShow();return;}if(!pstCanHab())return;await pstReshoot('pod');return;}
@@ -5777,7 +5780,7 @@ async function pstRoomEnsure(list){const R=PST.room;if(!R)return;let made=false;
   if(!R.P[k]){const gen=R.gen;R.P[k]=pstRoomFrames(R,k).then(F=>{if(R.gen===gen)R.L[k]=pstRoomSnap(F,{px:R.px});}).catch(e=>{if(R.gen===gen)toast('房間產生失敗：'+((e&&e.message)||e),5000);}).finally(()=>{if(R.gen===gen)delete R.P[k];});}
   await R.P[k];}
  /* 畫好新的分層：側欄的尺寸、格數跟著更新 */if(made&&PST.room===R){const sd=document.querySelector('#tryon .pst-side');if(sd){const top=sd.scrollTop;sd.innerHTML=pstSide();sd.scrollTop=top;}}}
-function pstRoomFrames(R,k){const o={off:[...R.off]};if(R.yaw!=null)o.yaw=R.yaw;return R.src==='pod'?podLayerFrames(R,k,o):R.src==='mr'?mrLayerFrames(k,o):frLayerFrames(R,k,o);}
+function pstRoomFrames(R,k){/* 第 204 版：邊算邊讓出（yld），重畫分層時頁面不卡住 */const o={off:[...R.off],yld:1};if(R.yaw!=null)o.yaw=R.yaw;return R.src==='pod'?podLayerFrames(R,k,o):R.src==='mr'?mrLayerFrames(k,o):frLayerFrames(R,k,o);}
 async function frLayerFrames(R,k,o){const code=R.code;
  if(k==='ind'||!code){const base=code?frIndFor(code):FR.ind;const pr=Object.assign(Object.create(base),{room:{...(base.room||{}),hab:AM_SOLO,dx:0,dy:0,cz:null,plate:''}});return amRoomFrames(pr,R.mode,true,'',{...o,solo:1});}
  if(k==='hab')return amRoomFrames(amHabProxy(code),R.mode,false,'',o);
@@ -6267,18 +6270,20 @@ async function podDownload(){const kind=POD.tab;const iss=podIssues(kind);if(iss
   const nm=`${lookFileName((b&&b.id)||(h&&h.code)||'pod')}_${kind==='ind'?'個體':kind==='hab'?(h&&h.code)||'棲息地':((h&&h.code)||'')+'_養殖艙'}`;
   const blob=POD.live?await amGif({...F,frames},1,amHasAlpha(frames[0])):await cvBlob(frames[0],'image/png');await dlSave(`${nm}.${POD.live?'gif':'png'}`,blob);return blob;}
  catch(e){toast('輸出失敗：'+((e&&e.message)||e),6000);return null;}}
-async function podShoot(kind){kind=kind||POD.tab;if(!podCanShoot(kind)){toast(podShootWhy(kind)||'不能拍照');return;}
+async function podShoot(kind){/* 第 204 版：算的時候頁面不卡，按第二下不重複 */if(POD.shooting)return;POD.shooting=true;try{return await podShootRun(kind);}finally{POD.shooting=false;}}
+async function podShootRun(kind){kind=kind||POD.tab;if(!podCanShoot(kind)){toast(podShootWhy(kind)||'不能拍照');return;}
  if(kind==='ind'&&!POD.live){PST.on=true;PST.src='try';PST.sel='';pubTryShow();return;}
- let F=kind===POD.tab?POD.fr:null;/* 第 189 版 */if(F&&podLvBaked(F,kind))F=null;if(!F){try{F=await podFramesBaked(kind);}catch(e){toast((e&&e.message)||String(e),5000);return;}}if(!F){toast(POD.err||POD.note||'還沒有畫面');return;}
+ let F=kind===POD.tab?POD.fr:null;/* 第 189 版 *//* 第 205 版：後台預設關掉的缸體項目都是合成時疊上去的，就連同關掉一起合成（不再打開後又整輪重算） */const off0=kind!=='ind'?podTankOff():[];const offOk=!!F&&off0.length&&podLvOffOk(off0)&&podLvOk(F);
+ if(F&&(podLvBaked(F,kind)||offOk)){/* 第 204 版：搖擺中用留著的各片合成，不整輪重算 */F=await podLvRound(F,kind,{off:offOk?off0:[]}).catch(e=>{console.error(e);return null;});}if(!F){try{F=await podFramesBaked(kind);}catch(e){toast((e&&e.message)||String(e),5000);return;}}if(!F){toast(POD.err||POD.note||'還沒有畫面');return;}
  const OK=okCur();const b=ptryBody();const h=podHab();const accs=podAccs();const official=!podShop()&&OK&&!OK.test&&kind!=='hab'&&podMine();
  const code=official?outfitCode(b.id,[...accs.map(y=>y.a.id),...(kind==='pod'&&h?['hab:'+h.code]:[])]):'';const who=OK&&OK.owner?String(OK.owner.name||OK.owner.id||'').trim():'';
  const perm=podShop()?{full:true,shop:true,who:'OFFICIAL',code:'',id:'',why:''}:OK&&OK.test?{full:true,test:true,who:'TEST',code:'',id:'',why:''}:{full:true,who:who||'OWNER',code,id:official?b.id:'',why:''};
  const habName=kind==='ind'?'':(h&&h.name)||'';const info=Object.assign(pstInfoFor({id:b&&kind!=='hab'?b.id||'':'',nick:b&&kind!=='hab'?b.nick||'':habName},kind==='hab'?[]:accs.map(y=>y.a),null),{hab:kind==='ind'?'':(h&&h.code)||'',habName});
  const R=pstRoomNew(F,{src:'pod',kind,view:MR.view||'',yaw:kind==='ind'?null:podClamp(POD.cam.yaw,podLim().yaw),hasHab:kind!=='ind',hasInd:kind!=='hab'&&!!b,px:POD.live,info,perm,accs:kind==='hab'?[]:accs,hab:info.hab,habName,from:'養殖艙'});
  /* 第 154 版：畫好的那一層放在對的位置（棲息地＝hab、個體＝ind），主圖內容照分頁 */if(kind!=='pod'){const s0=R.L.room;R.L={[kind]:s0};R.L0=s0;R.part=kind;}
- /* 第 161 版：缸體逐項（背景、水面、地面、特效…）由後台預設，飼主不能開關 */if(kind!=='ind'){const off=podTankOff();if(off.length){const s0=R.main;R.off=off;R.L={};R.L0=s0;R.gen++;}}
+ /* 第 161 版：缸體逐項（背景、水面、地面、特效…）由後台預設，飼主不能開關 */if(kind!=='ind'){const off=podTankOff();if(off.length){const s0=R.main;R.off=off;/* 第 205 版：已經連同關掉合成好的就不重畫 */if(F.offK!==off.join(',')){R.L={};R.L0=s0;R.gen++;}}}
  await pstRoomOpen(R);}
-function podLayerFrames(R,k,o){const kind=k==='hab'?'hab':k==='ind'?'ind':R.hasHab&&R.hasInd?'pod':R.hasHab?'hab':'ind';return podFrames(kind,{live:R.px,off:o.off,yaw:o.yaw!=null?o.yaw:null});}
+function podLayerFrames(R,k,o){const kind=k==='hab'?'hab':k==='ind'?'ind':R.hasHab&&R.hasInd?'pod':R.hasHab?'hab':'ind';/* 第 205 版：換視角、關掉合成時疊上去的缸體項目：用舞台留著的各片重新合成 */const rf=podLvReuse(R,kind,o);if(rf)return rf;return podFrames(kind,{live:R.px,off:o.off,yaw:o.yaw!=null?o.yaw:null,yld:o.yld});}
 function podToMr(){const b=ptryBody();const h=podHab();if(h&&h.data)MR.hab=h.code;MR.ind=podMine()?b.id:'';if(MR.ind)MR.wear[PUB.cur+'|'+MR.ind]=PTRY.on.map(y=>({acc:y.id,slot:y.slot,color:y.color||''}));}
 function podFromMr(){POD.hab=MR.hab;const m=MR.ind&&okMineInd(MR.ind);if(m){PTRY.src='mine';PTRY.B.mine=okBody(m);const L=MR.wear[PUB.cur+'|'+MR.ind];PTRY.on=Array.isArray(L)?L.map(y=>({id:y.acc,slot:y.slot,color:y.color||''})):PTRY.on;}POD.lk=null;}
 async function podStaticCanvas(b,fresh){const s0=Math.min(1,1040/b.w,1040/b.h);const key=b.w+'x'+b.h;const crop=(c,r)=>{const x=Math.round(r.x*c.width),y=Math.round(r.y*c.height),w=Math.max(1,Math.round(r.w*c.width)),h=Math.max(1,Math.round(r.h*c.height));const o=document.createElement('canvas');o.width=w;o.height=h;o.getContext('2d').drawImage(c,-x,-y);return o;};
@@ -6309,7 +6314,7 @@ function podDragEnd(){const d=PODD.d;if(!d)return;PODD.d=null;const box=podView(
 function podCbPut(d){try{localStorage.setItem(podCbKey(),JSON.stringify(d));return true;}catch(e){toast('瀏覽器的空間不夠，組合沒有存起來：請先下載 JSON，再刪掉一些組合',6000);return false;}}
 function podCodeObj(){const b=ptryBody();const h=podHab();const o=h?podPos(h.code):{};const base=PTRY.src==='base';
  return{v:2,o:(okCur()||{}).owner?okCur().owner.id||'':'',s:PUB.cur||'',src:base?'base':'mine',i:base?'':(b&&b.id)||'',bp:base?PTRY.bpose||'':'',bc:base?{...(PTRY.bpal||{})}:null,
-  a:PTRY.on.map(y=>[y.id,y.slot,y.color||'']),h:h?h.code:'',t:MR.tpl||'',x:o.x!=null?+o.x:null,z:o.z!=null?+o.z:null,cam:[+(+POD.cam.yaw||0).toFixed(2),+(+POD.cam.tilt||0).toFixed(4)],d:[POD.live?1:0,POD.anim?1:0,POD.swH?1:0,+POD.swA||6,+POD.swC||1]};}
+  a:PTRY.on.map(y=>[y.id,y.slot,y.color||'']),h:h?h.code:'',t:MR.tpl||'',x:o.x!=null?+o.x:null,z:o.z!=null?+o.z:null,/* 第 203 版：生物大小 */...(o.s!=null?{cs:+o.s}:{}),cam:[+(+POD.cam.yaw||0).toFixed(2),+(+POD.cam.tilt||0).toFixed(4)],d:[POD.live?1:0,POD.anim?1:0,POD.swH?1:0,+POD.swA||6,+POD.swC||1]};}
 function podApplyObj(o){if(!o||(o.v!==1&&o.v!==2))throw new Error('看不懂這個房間'+TERMS.code);if(o.s&&PUB.cur&&o.s!==PUB.cur)throw new Error('這是別的物種的組合，請先切換物種');
  if(o.v===1)o={...o,src:o.i?'mine':'base'};const skip=[];let indOk=true;
  if(o.src==='mine'&&o.i){const m=okMineInd(o.i);if(m){PTRY.src='mine';PTRY.B.mine=okBody(m);}else{indOk=false;skip.push('個體');}}
@@ -6317,7 +6322,7 @@ function podApplyObj(o){if(!o||(o.v!==1&&o.v!==2))throw new Error('看不懂這�
  if(Array.isArray(o.a)){const L=pubTryAccs();const on=o.a.filter(a=>Array.isArray(a)&&L.some(z=>z.id===a[0])).map(a=>({id:a[0],slot:a[1],color:a[2]||''}));if(on.length<o.a.length)skip.push('飾品');ptryHist();PTRY.on=on;}
  if(o.h){if(podHabList().some(h=>h.code===o.h))POD.hab=o.h;else skip.push('棲息地');}
  const r=mrData()||{};MR.tpl=o.t&&(r.tpls||[]).some(t=>t.id===o.t)?o.t:'';
- if(o.h&&POD.hab===o.h&&(podShop()||mrCan('pos')))podSetPos(o.h,{x:o.x!=null?+o.x:null,z:o.z!=null?+o.z:null});
+ if(o.h&&POD.hab===o.h&&(podShop()||mrCan('pos')))podSetPos(o.h,{x:o.x!=null?+o.x:null,z:o.z!=null?+o.z:null,s:o.cs!=null&&+o.cs!==1?podSzClamp(o.cs):null});
  if(Array.isArray(o.cam))POD.cam={yaw:podClamp(o.cam[0],podLim().yaw),tilt:podClamp(o.cam[1],podLim().tilt)};
  if(Array.isArray(o.d)){POD.live=!!o.d[0];POD.anim=POD.live&&!!o.d[1];POD.swH=!!o.d[2];if(+o.d[3])POD.swA=Math.max(1,Math.min(15,+o.d[3]));if(AM_SWAY_C.includes(+o.d[4]))POD.swC=+o.d[4];podSwayFit();}
  POD.lk=null;POD.fr=null;podSave();if(okCur()&&!podShop()){try{mrSave();}catch(e){}}return skip;}
@@ -6364,7 +6369,7 @@ function podLvCompose(F,i,p,cam,runs){const V=F.v3;const h=podHab();if(!h)return
     cm=amV3Fit(b,[amV3Cam(b,p.yaw||1e-3,th),amV3Cam(b,yc-A||1e-3,th),amV3Cam(b,yc+A||1e-3,th)])[0];}
    PLV.cm=cm;const W=V.C.W,H0=V.C.H;if(runs){PLG.cm=cm;runs.forEach((r,ri)=>{const c=PLG.rc[ri]&&PLG.rc[ri].width===W&&PLG.rc[ri].height===H0?PLG.rc[ri]:(PLG.rc[ri]=rmCanvas(W,H0));const x=c.getContext('2d');x.setTransform(1,0,0,1,0,0);x.globalAlpha=1;x.globalCompositeOperation='source-over';x.clearRect(0,0,W,H0);x.imageSmoothingEnabled=!V.C.px;amV3Compose(x,V.C,V.Ks[i],V.tb,cm,r);podLgUpload(ri,c);});return true;}
    const c=PLV.c&&PLV.c.width===W&&PLV.c.height===H0?PLV.c:(PLV.c=rmCanvas(W,H0));const x=c.getContext('2d');x.setTransform(1,0,0,1,0,0);x.globalAlpha=1;x.globalCompositeOperation='source-over';x.clearRect(0,0,W,H0);x.imageSmoothingEnabled=!V.C.px;
-   amV3Compose(x,V.C,V.Ks[i],V.tb,cm);return c;});}catch(e){console.error(e);return null;}finally{POD.cam=keep;}}
+   /* 第 205 版：p.off＝合成時關掉的缸體項目（拍照） */if(p.off&&p.off.size)amV3Compose(x,podLvOffC(V.C,p.off),podLvOffK(V.Ks[i],p.off),V.tb,cm);else amV3Compose(x,V.C,V.Ks[i],V.tb,cm);return c;});}catch(e){console.error(e);return null;}finally{POD.cam=keep;}}
 function podLvGiveUp(){const F=POD.fr;if(F){F.lvBad='游標阻尼畫不出來，照一般播放';if(F.v3)F.v3.Ks=null;}podLvStop();PLV.F=null;podPaint();}
 function podLvTick(now){PLV.raf=0;const g=POD.pg,F=PLV.F;if(!g||!g.cv||!g.cv.isConnected||!F||F!==POD.fr)return;if(PLV.lite?!podLvLiteCan():!podLvCan())return;PLV.raf=requestAnimationFrame(podLvTick);
  if(document.hidden){PLV.last=0;return;}const d=PODD.d;/* 拖曳生物時畫的是虛線框，先不動 */if(d&&d.mode==='pos'){PLV.last=0;return;}
@@ -6447,13 +6452,27 @@ function podRcPut(key,F,kind,o){if(!key||!F||!podLvOk(F)||key!==podRcKey(kind,o)
  let tot=0;PODRC.m.forEach(e=>{tot+=e.bytes;});while(tot>max&&PODRC.m.size>1){let ok=null,oe=null;PODRC.m.forEach((e,k)=>{if(k!==key&&(!oe||e.at<oe.at)){oe=e;ok=k;}});if(!ok)break;PODRC.m.delete(ok);tot-=oe.bytes;}}
 function podRcCam(F){const a=F.lvAt||{yaw:F.lv.yaw0,tilt:F.lv.tilt0};const l=podLim();if(Math.abs(a.yaw-podClamp(POD.cam.yaw,l.yaw))>.01)podLvRecompose();}
 function podLvBaked(F,kind){return kind!=='ind'&&podSwayOn()&&podLvOk(F);}
-async function podFramesBaked(kind){const F=await podFrames(kind);if(podIssues(kind).length)await tpvRangeFrames(F);return F;}
+async function podFramesBaked(kind){/* 第 204 版：邊算邊讓出 */const F=await podFrames(kind,{yld:1});if(podIssues(kind).length)await tpvRangeFrames(F);return F;}
 function nodlBlocked(el){if(!el||!el.closest)return false;const m=el.closest(NODL_SEL);if(!m)return false;
  const inTry=m.closest('#tryon');if(inTry&&podShop())return false;
  const pub=CLOUD.mode==='visitor'||!!m.closest('#pubview,#tryon,#myroom');if(!pub)return false;
  /* 養殖艙舞台：全部持有＝照舊 */if(inTry&&m.closest('#pod-cv,#ptry-cv,#pst-cv')&&!podIssues(POD.tab).length&&okCur())return false;
  return true;}
 function nodlRefuse(why){toast('不能下載：'+(why||'用到還沒持有的東西'),4000);return true;}
+function podSzHtml(h){if(!h||!h.data)return'';const v=podSzPct(h.code);
+ return`<div class="lyr-sz"><label class="lyr-szl"><span>生物大小</span><input type="range" min="${POD_SZ.min}" max="${POD_SZ.max}" step="${POD_SZ.step}" value="${v}" data-pod-sz="1" aria-label="生物大小"><output>${v}%</output></label><button type="button" class="g mini" data-pod-sz0="1"${v===100?' disabled':''}>原本大小</button></div>`;}
+function podSzSet(pct){const h=podHab();if(!h||!h.data||!podLayerCanMove())return;const s=podSzClamp((+pct||100)/100);podSetPos(h.code,{s:Math.abs(s-1)<1e-6?null:+s.toFixed(3)});POD.fr=null;podRender();
+ const ly=document.querySelector('#tryon .lyr:not(.pst-lyr)');if(ly)ly.outerHTML=podLayersHtml();}
+function podLvOffC(C,off){return{...C,bg:off.has('bg')?'':C.bg,on:{...C.on,rim:C.on.rim&&!off.has('rim'),lines:C.on.lines&&!off.has('lines')},plate:off.has('plate')?null:C.plate,border:off.has('frame')?null:C.border};}
+function podLvOffK(K,off){return K&&{...K,fxT:off.has('bubbles')?{}:K.fxT,reflT:off.has('sides')?null:K.reflT};}
+function podLvReuse(R,kind,o){const F=POD.fr;if(kind==='ind'||kind!==POD.tab||!!R.px!==!!POD.live||!podLvOk(F)||F.frames.length<1)return null;const off=(o&&o.off)||[];if(!podLvOffOk(off))return null;
+ return podLvRound(F,kind,{off,yaw:o&&o.yaw!=null?+o.yaw:null}).then(r=>r||podFrames(kind,{live:R.px,off,yaw:o&&o.yaw!=null?o.yaw:null,yld:1}));}
+async function podLvRound(F,kind,o){o=o||{};if(!podLvOk(F))return null;const L=F.frames.length,dur=F.dur||100;const sw=podSwayOn()&&L>1;const sc=+POD.swC||1;const N=sw?L*(sc<1?Math.round(1/sc):1):L;if(N>128)return null;
+ const lim=podLim();const rel=podClamp(o.yaw!=null?o.yaw:POD.cam.yaw,lim.yaw),tilt=+podClamp(POD.cam.tilt,lim.tilt).toFixed(4);const A=sw?Math.max(0,Math.min(15,+POD.swA||0)):0;const off=new Set(o.off||[]);
+ const frames=[];let t0=performance.now();
+ for(let n=0;n<N;n++){const c=podLvCompose(F,n%L,{rel,tilt,par:A,yaw:rel+(sw?podLvSway(F,n*dur):0),off});if(!c)return null;const q=rmCanvas(c.width,c.height);const x=q.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(c,0,0);frames.push(q);
+  if(performance.now()-t0>24){await new Promise(r=>setTimeout(r,0));t0=performance.now();if(POD.fr!==F)return null;}}
+ const out={...F,frames,lv:null,v3:null,lvAt:null,offK:[...off].join(',')};if(podIssues(kind).length)await tpvRangeFrames(out);return out;}
 function admTestBar(){if(typeof CLOUD==='undefined'||!CLOUD.preview||typeof STORE==='undefined'||!Array.isArray(STORE.owners))return'';const ws=STORE.owners.filter(w=>w&&w.id&&!String(w.id).startsWith('__'));
  return`<label class="tiny" style="display:flex;gap:6px;align-items:center">以${H(TERMS.owner)}身分測試<select data-admtest="1" aria-label="以${H(TERMS.owner)}身分測試"><option value=""${ADMT.v?'':' selected'}>訪客（沒有鑰匙）</option><option value="*"${ADMT.v==='*'?' selected':''}>全部都有的測試${H(TERMS.owner)}</option>${ws.map(w=>`<option value="${H(w.id)}" label="${H(w.name||w.id)}（${H(w.id)}）"${ADMT.v===w.id?' selected':''}></option>`).join('')}</select></label>`;}
 function admAllPayload(){const inds=[],accs={};

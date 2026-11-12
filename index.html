@@ -2985,6 +2985,16 @@ html{scrollbar-gutter:stable}
 #tryon .ptry-key .ptk-b:disabled{opacity:.6;cursor:default}
 #tryon .ptry-key .ptk-e{grid-column:1/-1;font:700 10.5px/1.4 var(--f-body);color:#ff9aa8}
 @media (max-width:760px){#tryon .ptry-key{grid-column:1/-1;width:100%}}
+/* 第 203 版：養殖艙圖層區的生物大小拉桿 */
+#tryon .lyr-sz{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+#tryon .lyr-szl{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 6px;margin:0;font-size:11px}
+#tryon .lyr-szl input[type=range]{grid-column:1/-1;width:100%;margin:0;accent-color:var(--pod-acc,currentColor)}
+#tryon .lyr-szl output{grid-row:1;grid-column:2;font:500 11px/1 var(--f-mono,monospace)}
+#tryon .tryon-box.ax73 .lyr-szl>span{font:var(--pod-label);letter-spacing:.06em;color:var(--pod-ink-2)}
+#tryon .tryon-box.ax73 .lyr-szl output{color:var(--pod-acc-2)}
+#tryon .tryon-box.ax73 .lyr-sz .g.mini{width:100%}
+/* 第 204 版：拍照重拍中（邊算邊讓出，頁面不卡） */
+#tryon #pst-cv[aria-busy="true"]{cursor:progress}
 </style>
 
 <div class="wrap">

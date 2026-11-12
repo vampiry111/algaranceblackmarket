@@ -4270,11 +4270,11 @@ const CAR={hold:new WeakMap(),glow:new WeakMap(),tok:new WeakMap(),over:new Weak
 const carOver=r=>CAR.over.has(r)||r.matches(':hover');
 const carReduced=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 function carRows(){if(typeof document==='undefined')return[];return[...document.querySelectorAll('#pubview .spot .bn-row,#tab-pub .evprev .bn-row')].filter(r=>r.children.length>1&&r.offsetParent&&r.scrollWidth>r.clientWidth+4);}
-function carStep(r){const c=r.firstElementChild;const gap=parseFloat(getComputedStyle(r).columnGap)||14;return c?c.getBoundingClientRect().width+gap:r.clientWidth;}
+function carStep(){var f=ghRestGet("carStep");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}carStep.__rs=1;
 function carTick(){if(typeof document==='undefined'||document.hidden)return;const now=Date.now();
  carRows().forEach(r=>{if(carOver(r)||r.contains(document.activeElement)||(CAR.hold.get(r)||0)>now)return;const end=r.scrollLeft+r.clientWidth>=r.scrollWidth-6;const to=end?0:r.scrollLeft+carStep(r);carGlow(r);r.scrollTo({left:to,behavior:carReduced()?'auto':'smooth'});
   /* 平滑捲動偶爾會被前一次的對齊吃掉：一秒後還沒到就直接跳過去 */const tok={};CAR.tok.set(r,tok);setTimeout(()=>{if(CAR.tok.get(r)===tok&&Math.abs(r.scrollLeft-to)>8&&!carOver(r)&&!((CAR.hold.get(r)||0)>Date.now()))r.scrollTo({left:to,behavior:'auto'});},1000);});}
-function carGlow(r){const sec=r.closest('.spot');if(!sec)return;sec.classList.remove('sliding');void sec.offsetWidth;sec.classList.add('sliding');clearTimeout(CAR.glow.get(sec));CAR.glow.set(sec,setTimeout(()=>sec.classList.remove('sliding'),1100));}
+function carGlow(){var f=ghRestGet("carGlow");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}carGlow.__rs=1;
 (function(){if(typeof window==='undefined')return;
  
  
@@ -5531,6 +5531,7 @@ function pstEtb(){var f=ghRestGet("pstEtb");return new.target?Reflect.construct(
 /* ---- 重拍：換顯示的物件、畫風、動態時重新產生房間分層 ---- */
 function pstRegen(){var f=ghRestGet("pstRegen");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}pstRegen.__rs=1;
 function pstReshoot(){var f=ghRestGet("pstReshoot");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}pstReshoot.__rs=1;
+function pstReshootRun(){var f=ghRestGet("pstReshootRun");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}pstReshootRun.__rs=1;
 function pstShowSet(){var f=ghRestGet("pstShowSet");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}pstShowSet.__rs=1;
 function pstPxSet(){var f=ghRestGet("pstPxSet");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}pstPxSet.__rs=1;
 (function(){if(typeof document==='undefined')return;
@@ -5571,7 +5572,7 @@ function podLayersHtml(){const h=podHab();const b=ptryBody();const can=podLayerC
  return`<aside class="lyr" aria-label="圖層"><b class="lyr-h">圖層</b><ol class="lyr-l">
   <li><button type="button" class="lyr-r" data-pod="lsel|ind" aria-pressed="${on}"${b&&can?'':` disabled title="${H(!b?'先選擇生物':`${TERMS.shop}沒有開放移動位置`)}"`}><span class="lyr-th">${ti}</span><span class="lyr-n">生物</span></button></li>
   <li><div class="lyr-r lyr-lock" title="棲息地固定，拖曳畫面＝轉動視角"><span class="lyr-th">${th}</span><span class="lyr-n">棲息地</span><span class="lyr-k" aria-label="固定">🔒</span></div></li></ol>
-  <p class="lyr-tip">${on?'拖曳畫面＝移動生物；再點一次取消':'點選圖層後才能拖曳它'}</p>${/* 第 161 版：生物回到原本的位置放在圖層區（原本在右欄的構成） */b&&can&&h&&h.data?`<div class="lyr-bs"><button type="button" class="g mini" data-pod="reset"${Object.keys(podPos(h.code)).length?'':' disabled'}>生物回到原位</button></div>`:''}</aside>`;}
+  <p class="lyr-tip">${on?'拖曳畫面＝移動生物；再點一次取消':'點選圖層後才能拖曳它'}</p>${/* 第 161 版：生物回到原本的位置放在圖層區（原本在右欄的構成） */b&&can&&h&&h.data?`<div class="lyr-bs"><button type="button" class="g mini" data-pod="reset"${podPos(h.code).x!=null||podPos(h.code).z!=null?'':' disabled'}>生物回到原位</button></div>${/* 第 203 版 */podSzHtml(h)}`:''}</aside>`;}
 (function(){if(typeof document==='undefined')return;
  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#tryon [data-pod^="lsel|"]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();
   const v=b.dataset.pod.split('|')[1]||'';POD.lsel=POD.lsel===v?'':v;
@@ -6987,7 +6988,7 @@ async function amRoomFrames(ind,mode,withCreature,fid,opt){/* 第 120 版：allo
  const PL=WR3?{plan:WR3.plan.slice().sort((a,b)=>a.z-b.z),foot:S,root:null,eye:null,closed:null,noOutline:true,clipOf:q=>{const r=amLayerClip(G,q,code);return r&&PT3?[r[0],r[1]+PT3,r[2],r[3]+PT3]:r;}}:null;const lyPool=[];
  const C3=tb?{W:Cw,H:Ch,S,px,hard:clearBg,bg:on('bg')&&!clearBg?bgCol:'',lw:px?1:Math.max(1,S/176),on:{rim:on('rim'),lines:on('lines')},cols:amFaceCols(W_),
   inner:amMix(R.box.bg&&R.box.bg!=='none'&&/^#[0-9a-f]{6}$/i.test(R.box.bg)?amHex(R.box.bg):W_.dark,W_.light,.22),innerA:px?1:.6,Zg,Zc,Zfx:tb?{back:amV3Zof(G,AM_FX_V.back),mid:amV3Zof(G,AM_FX_V.mid),front:amV3Zof(G,AM_FX_V.front)}:null,sp:sp.map(q=>q.k),seq,
-  plate:on('plate')?amFramePlate(RP0,S,px,W_,false,true):null,border:on('frame')?amFramePlate(RP0,S,px,W_,true,false):null,own,water:WG0?{Yw:WG0.Yw,below:WG0.below,line:SF.water.p.line,light:wLight}:null}:null;let K0=null;/* 第 185 版：keepK＝每一格的各片都留著（養殖艙即時舞台每個畫面用當下的鏡頭重畫）；沒變的後牆與圖層共用同一張，省記憶體 */const KK=!!(opt&&opt.keepK),Ks=[],wlSeen=new Map(),ly0=[];/* 第 187 版：部位的圖沒變就共用（c3Share）；留著的畫布超過 keepK 給的位元組上限就丟出 KEEPK_BUDGET（即時舞台放棄、照原本的輪播）；每兩格讓出一次，準備的時候頁面不會卡住 */const c3Share=KK?new Map():null,kkCrop=KK?new Map():null,kkSeen=KK?new Set():null,kkMax=KK&&+opt.keepK>1?+opt.keepK:Infinity;let kkBytes=0;/* 第 188 版：圖層先抽 5 格（0、1、L/4、L/3、L/2）比對，都一樣＝靜止，之後每一格直接共用第 0 格那一張、不再重算；地面、倒影、水面、特效整張的片和第 0 格或上一格一樣也共用 */const lyStill=[],kkU={};const kkSame=(key,c)=>{if(!KK||!c)return c;const a=new Uint32Array(c.getContext('2d').getImageData(0,0,c.width,c.height).data.buffer);const z=kkU[key];const eq=b=>{if(!b||b.a.length!==a.length)return false;for(let n=0;n<a.length;n++)if(a[n]!==b.a[n])return false;return true;};if(z&&eq(z.first))return z.first.c;if(z&&eq(z.last))return z.last.c;const e={a,c};if(z)z.last=e;else kkU[key]={first:e,last:e};return c;};
+  plate:on('plate')?amFramePlate(RP0,S,px,W_,false,true):null,border:on('frame')?amFramePlate(RP0,S,px,W_,true,false):null,own,water:WG0?{Yw:WG0.Yw,below:WG0.below,line:SF.water.p.line,light:wLight}:null}:null;let K0=null;/* 第 185 版：keepK＝每一格的各片都留著（養殖艙即時舞台每個畫面用當下的鏡頭重畫）；沒變的後牆與圖層共用同一張，省記憶體 */const KK=!!(opt&&opt.keepK),/* 第 204 版：yld＝整輪重算時也照時間讓出（拍照重畫分層、搖擺中拍照；和留著各片的那一輪一樣不卡住頁面） */YL=!KK&&opt&&opt.yld?{t:performance.now()}:null,Ks=[],wlSeen=new Map(),ly0=[];/* 第 187 版：部位的圖沒變就共用（c3Share）；留著的畫布超過 keepK 給的位元組上限就丟出 KEEPK_BUDGET（即時舞台放棄、照原本的輪播）；每兩格讓出一次，準備的時候頁面不會卡住 */const c3Share=KK?new Map():null,kkCrop=KK?new Map():null,kkSeen=KK?new Set():null,kkMax=KK&&+opt.keepK>1?+opt.keepK:Infinity;let kkBytes=0;/* 第 188 版：圖層先抽 5 格（0、1、L/4、L/3、L/2）比對，都一樣＝靜止，之後每一格直接共用第 0 格那一張、不再重算；地面、倒影、水面、特效整張的片和第 0 格或上一格一樣也共用 */const lyStill=[],kkU={};const kkSame=(key,c)=>{if(!KK||!c)return c;const a=new Uint32Array(c.getContext('2d').getImageData(0,0,c.width,c.height).data.buffer);const z=kkU[key];const eq=b=>{if(!b||b.a.length!==a.length)return false;for(let n=0;n<a.length;n++)if(a[n]!==b.a[n])return false;return true;};if(z&&eq(z.first))return z.first.c;if(z&&eq(z.last))return z.last.c;const e={a,c};if(z)z.last=e;else kkU[key]={first:e,last:e};return c;};
  if(KK&&WR3&&LY.length&&L>4){const js=[...new Set([1,L>>2,Math.floor(L/3),L>>1])].filter(n=>n>0&&n<L);LY.forEach((o,k)=>{const f0=new Uint32Array(rmFrameData(WR3.rig,{...PL,filter:q=>q===o.q3},0,L).data.buffer);lyStill[k]=js.every(n=>{const a=new Uint32Array(rmFrameData(WR3.rig,{...PL,filter:q=>q===o.q3},n,L).data.buffer);if(a.length!==f0.length)return false;for(let m=0;m<a.length;m++)if(a[m]!==f0[m])return false;return true;});});}
  for(let i=0;i<L;i++){const c=rmCanvas(Cw,Ch);const fx=c.getContext('2d');fx.imageSmoothingEnabled=!px;const x=ic.getContext('2d');x.clearRect(0,0,Cw,Ch);x.imageSmoothingEnabled=!px;
   const wl=on('wall')?(WA.wall?WA.wall[aj(i)]:wallStill):null;
@@ -7023,7 +7024,7 @@ async function amRoomFrames(ind,mode,withCreature,fid,opt){/* 第 120 版：allo
    const RW=WR3?WR3.rig.W:Cw,RH=WR3?WR3.rig.H:Ch;/* 第 184 版：棲息地圖層的自動鼓起（amA3LayerMesh；自動立體打開、而且有鏡頭時才算） */const A3L=cam&&WR3&&LY.length&&typeof amA3On==='function'&&amA3On()?rmFrameMats(WR3.rig,PL,j,L).world:null;const layers=LY.map((o,k)=>{let c=KK&&lyStill[k]&&ly0[k]?ly0[k].c:null;const fd=c?null:rmFrameData(WR3.rig,{...PL,filter:q=>q===o.q3},j,L);if(c){}else if(KK){const a=new Uint32Array(fd.data.buffer),z=ly0[k];if(z&&z.a.length===a.length){let same=true;for(let n=0;n<a.length;n++)if(a[n]!==z.a[n]){same=false;break;}if(same)c=z.c;}if(!c){c=rmCanvas(RW,RH);c.getContext('2d').putImageData(fd,0,0);if(!z)ly0[k]={a,c};}}else{c=keep?rmCanvas(RW,RH):(lyPool[k]||(lyPool[k]=rmCanvas(RW,RH)));c.getContext('2d').putImageData(fd,0,0);}const lc=amLayerCfg(code,o.q.lid)||{};const bb=o.q3.t&&o.q3.t.bb;/* 第 128 版：偏轉（yw，度）與這一層的範圍。第 180 版：y0／y1＝這張圖在原本畫面座標裡的上下範圍（加高的畫布） */return{c,Z:o.Z,lid:o.q.lid,th:Math.max(0,+lc.th||0)*tb.dd,yw:Math.max(-75,Math.min(75,+lc.yw||0)),bb:bb&&PT3?[bb[0],bb[1]-PT3,bb[2],bb[3]-PT3]:bb,y0:-PT3,y1:RH-PT3,inf:A3L&&o.q3.t&&amA3LayerOn(lc,o.q3.t,WR3.rig)?amA3LayerMesh(WR3.rig,o.q3.t,A3L.get(o.q3.t),tb,o.Z,-PT3,lc):null};});
    if(KK){floorT=kkSame('floor',floorT);reflT=kkSame('refl',reflT);waterT=kkSame('water',waterT);Object.keys(fxT).forEach(b=>{fxT[b]=kkSame('fx:'+b,fxT[b]);});}
    const K={wlT,fxT,floorT,slab:flat&&RP.floorC.thick>0?{Tw:RP.floorC.thick*tb.D/tb.F}:null,reflT,waterT,groups:gs.map(g=>g&&g[j]),layers,creature:cr};/* 第 189 版：留著的各片標記成可以留在顯示卡上 */if(keep)amTxKeepK(K);if(cam)amV3Compose(fx,C3,K,tb,cam);if(i===0)K0=K;if(KK&&cam){Ks[i]=K;const add=q=>{if(q&&!kkSeen.has(q)){kkSeen.add(q);kkBytes+=q.width*q.height*4;}};add(K.wlT);add(K.floorT);add(K.reflT);add(K.waterT);Object.values(K.fxT||{}).forEach(add);layers.forEach(l=>add(l.c));if(cr){add(cr.c);(cr.parts||[]).forEach(q=>add(q.c));}if(kkBytes>kkMax)throw new Error('KEEPK_BUDGET');}}
-  if(KK&&i%2===1)await new Promise(r=>setTimeout(r,0));
+  if(KK&&i%2===1)await new Promise(r=>setTimeout(r,0));else if(YL&&performance.now()-YL.t>24){await new Promise(r=>setTimeout(r,0));YL.t=performance.now();}
   frames.push(c);}
  const boxes={};let gb=null;(WA.plan||[]).forEach(q=>{const b=q.t.bb;if(b[2]<0)return;boxes['wl:'+q.lid]=b;gb=gb?[Math.min(gb[0],b[0]),Math.min(gb[1],b[1]),Math.max(gb[2],b[2]),Math.max(gb[3],b[3])]:b.slice();});if(gb)boxes.grp=gb;
  if(rig){let b=null;rig.parts.forEach(t=>{const q=t.bb;if(q[2]<0)return;b=b?[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[2]),Math.max(b[3],q[3])]:q.slice();});if(b)boxes.ind=[ox+b[0],oy+b[1],ox+b[2],oy+b[3]];}
@@ -9165,10 +9166,10 @@ function podBare(){var f=ghRestGet("podBare");return new.target?Reflect.construc
 function podCtx(fn,o){const run=o?()=>podCamApply(o,fn):fn;if(podShop())return o?podLock(run):fn();/* 第 167 版：訪客的個體分頁也用公開的房間設定（像素大小、調色），原本用內建預設（176）比持有者（後台 360）粗一倍 */if(mrRoomAll()&&(okCur()&&mrData()||o)){const h=podHab();if(h&&h.data)MR.hab=h.code;return mrWith(run,o);}return podBare(run);}
 /* 第 151 版：像素／原圖（live）與動態／靜態（anim）分開；原圖也能轉視角（只畫一格）；棲息地與養殖艙一律用立體畫法（yaw 至少 0.001°），拖曳視角時才有第 0 格的立體資料可以即時重畫 */
 async function podFrames(kind,o){o=o||{};const live=o.live!=null?o.live:POD.live;const anim=live&&(o.anim!=null?o.anim:POD.anim);const mode=live?'px':'orig';const h=podHab();const code=h&&h.code;const yaw=kind==='ind'?null:o.yaw!==undefined&&o.yaw!==null?+o.yaw:/* 第 163 版：未持有不能轉視角 */podHabTry()?0:podClamp(POD.cam.yaw,podLim().yaw);
- const base={off:['owner',...(o.off||[])],allowOrig:1,/* 第 185 版：即時舞台用的一輪（不擺動、留著每格的各片） */...(o.keepK?{keepK:o.keepK,nosway:1}:{}),...(anim?{}:{still:1}),...(yaw!=null?{yaw:yaw||1e-3}:{})};
+ const base={off:['owner',...(o.off||[])],allowOrig:1,/* 第 185 版：即時舞台用的一輪（不擺動、留著每格的各片） */...(o.keepK?{keepK:o.keepK,nosway:1}:{}),...(anim?{}:{still:1}),/* 第 204 版 */...(o.yld?{yld:1}:{}),...(yaw!=null?{yaw:yaw||1e-3}:{})};
  return podCtx(async()=>{if(kind==='hab')return amRoomFrames(amHabProxy(code),mode,false,'',base);
   const look=await podLook(!live);if(!look)throw new Error('這個生物沒有分部位的圖層，沒辦法放進棲息地或做成動態');const b=ptryBody();const p=kind==='pod'?podPos(code):{};
-  const ind=Object.create({id:b.id||'tpl',nick:b.nick||'',room:{hab:kind==='ind'?AM_SOLO:code,plate:'',...(p.x!=null?{dx:+p.x}:{}),...(p.z!=null?{cz:+p.z}:{}),...(kind==='ind'?{dx:0,dy:0,cz:null}:{})}});
+  const ind=Object.create({id:b.id||'tpl',nick:b.nick||'',room:{hab:kind==='ind'?AM_SOLO:code,plate:'',...(p.x!=null?{dx:+p.x}:{}),...(p.z!=null?{cz:+p.z}:{}),/* 第 203 版：飼主調的生物大小（乘在缸體的生物比例上，和棲息地同一個像素格） */...(p.s!=null&&+p.s!==1?{scale:+rmCfg().box.scale*podSzClamp(p.s)}:{}),...(kind==='ind'?{dx:0,dy:0,cz:null}:{})}});
   ind.__look=look;ind.__acc=await amAccRigParts(look,podAccs(),ptryWear(),PUB.cur);return amRoomFrames(ind,mode,true,'',kind==='ind'?{...base,solo:1}:base);},{code:kind==='ind'?AM_SOLO:code,kind,noTpl:kind!=='pod',orig:!live});}
 async function podRender(){const seq=++POD.seq;const kind=POD.tab;podStop();POD.busy=true;POD.err='';POD.note='';const prev=POD.fr0&&POD.fr0.kind===kind?POD.fr0.F:null;POD.fr=null;POD.img='';
  /* 第 189 版：切換畫風、動態、搖擺、分頁、視角歸零時（podRcMark），這個畫面算過的那一輪還留著就直接用，不重算；其他原因的重畫（換飾品、換位置…）先把留著的清掉 */
@@ -9201,6 +9202,7 @@ function podDownload(){var f=ghRestGet("podDownload");return new.target?Reflect.
 /* ---- 拍照：個體的靜態＝原本的排版海報；動態或棲息地、養殖艙＝輸出工作室的房間素材 ---- */
 /* 第 154 版：kind＝要拍哪一種（預設目前的分頁）；從個體分頁拍＝只有個體、棲息地分頁＝只有棲息地、養殖艙＝兩者。拍照裡打開另一個物件時用別的 kind 重拍（PST.back 不變） */
 function podShoot(){var f=ghRestGet("podShoot");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podShoot.__rs=1;
+function podShootRun(){var f=ghRestGet("podShootRun");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podShootRun.__rs=1;
 /* 輸出工作室重畫分層（視角、缸體） */
 function podLayerFrames(){var f=ghRestGet("podLayerFrames");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podLayerFrames.__rs=1;
 /* ---- 房間代碼：和養殖艙的狀態互換（個體＝自己的個體、飾品＝身上的飾品） ---- */
@@ -9629,6 +9631,40 @@ function nodlRefuse(){var f=ghRestGet("nodlRefuse");return new.target?Reflect.co
 (function(){if(typeof document==='undefined')return;
  document.addEventListener('contextmenu',e=>{if(nodlBlocked(e.target))e.preventDefault();},true);
  document.addEventListener('dragstart',e=>{if(nodlBlocked(e.target))e.preventDefault();},true);})();
+/* ================= 第 203 版（2026-11-12）：飼主在養殖艙放大縮小生物 ================= */
+/* 使用者要求（docs/內測回報.md 第 1 項）：飼主可以在養殖艙放大縮小生物；生物的像素點大小必須和棲息地一致，不能只用 CSS 放大。
+   做法：倍數存在 MR.pos[物種|棲息地].s（和位置 x、z 放在一起，跟著鑰匙存在瀏覽器、組合與房間代碼第 2 版的 cs），
+   畫組合時乘進生物的 room.scale（podFrames）——生物和棲息地在同一張場景像素畫布上畫，像素格自然一致。
+   開放與否沿用「移動生物」（mrCan('pos')）；試用的棲息地不能調（和移動位置相同）。 */
+const POD_SZ={min:50,max:200,step:5};
+const podSzClamp=v=>{const n=+v;return isFinite(n)&&n>0?Math.max(POD_SZ.min/100,Math.min(POD_SZ.max/100,n)):1;};
+const podSzPct=code=>{const s=podPos(code).s;return Math.round((s!=null?podSzClamp(s):1)*100);};
+/* 圖層區「生物回到原位」下面的大小拉桿 */
+function podSzHtml(){var f=ghRestGet("podSzHtml");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podSzHtml.__rs=1;
+function podSzSet(){var f=ghRestGet("podSzSet");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podSzSet.__rs=1;
+(function(){if(typeof document==='undefined')return;
+ document.addEventListener('input',e=>{const t=e.target;if(!t||!t.dataset||!t.dataset.podSz||!t.closest('#tryon'))return;const o=t.closest('.lyr-szl').querySelector('output');if(o)o.textContent=t.value+'%';});
+ document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||!t.dataset.podSz||!t.closest('#tryon'))return;podSzSet(t.value);});
+ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#tryon [data-pod-sz0]');if(!b)return;e.preventDefault();podSzSet(100);});})();
+/* ================= 第 204 版（2026-11-12）：拍照沿用養殖艙的加速做法 ================= */
+/* 使用者問：拍照接到的生物與棲息地是不是第 185～190 版加速過的那一套？會卡就一起同步。
+   查的結果：打開拍照時直接用養殖艙已經算好的畫面（快）；但「搖擺中按拍照」與拍照裡重畫分層（像素遊戲、Q 版要的只有棲息地／只有生物、換視角、缸體逐項）
+   走的是整輪一次算完、中間不讓出的舊路徑，降速 4 倍時整頁卡住 1.8～8.9 秒。
+   做法：
+   1. 搖擺中按拍照（第 205 版改名 podLvRound，也處理視角與缸體項目）：不再整輪重算，用舞台留著的各片照搖擺的角度一格格合成（和舞台上看到的搖擺同一個算法：podLvSway、podLvCompose），邊合成邊讓出。
+      格數＝動態的格數×（搖擺比動態慢時多幾輪），超過 128 格或不能合成時才照舊重算。
+   2. 其他需要重算的（podFramesBaked、拍照的分層 pstRoomFrames）：amRoomFrames 加 yld，照時間讓出（和留著各片的那一輪一樣）。 */
+/* 第 205 版：換視角、關掉缸體項目也用留著的各片重新合成（不重算）。
+   只有「合成時才疊上去」的項目可以這樣關：背景、牆的厚度、牆角線、名牌、外框、特效、側牆倒影；
+   地面（片裡含影子）、影子、水面（影響特效與倒影的範圍）要關時照舊整輪重算。 */
+const POD_LV_OFF=new Set(['bg','rim','lines','plate','frame','bubbles','sides','owner']);
+const podLvOffOk=off=>(off||[]).every(k=>POD_LV_OFF.has(k));
+function podLvOffC(){var f=ghRestGet("podLvOffC");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podLvOffC.__rs=1;
+function podLvOffK(){var f=ghRestGet("podLvOffK");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podLvOffK.__rs=1;
+/* 拍照的分層要重畫時：同一個分頁、同一個畫風、留著各片、關的都是合成時的項目 → 重新合成；否則 null（照舊重算） */
+function podLvReuse(){var f=ghRestGet("podLvReuse");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podLvReuse.__rs=1;
+/* 用留著的各片合成一整輪：o.off＝合成時關掉的缸體項目、o.yaw＝視角（相對棲息地原本，預設目前的）；搖擺開著時照搖擺角度合成（格數＝動態格數×（搖擺比動態慢時多幾輪），超過 128 格回傳 null） */
+function podLvRound(){var f=ghRestGet("podLvRound");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podLvRound.__rs=1;
 /* ================= 第 116 版（2026-10-29）：管理員用買家身分測試公開頁 ================= */
 /* 後台「以訪客身分預覽」上方多一個「以買家身分測試」：
    訪客（沒有鑰匙）／全部都有的測試買家（所有公開物種的個體、所有飾品的原圖、所有棲息地的小房間）／某一位買家（和他用鑰匙解鎖看到的一樣，用目前的資料）。
@@ -10452,5 +10488,7 @@ if(typeof document!=='undefined'&&document.getElementById('tabs'))init();
 (function(){const add=(k,...xs)=>{if(TAB_HELP[k])TAB_HELP[k][1].push(...xs);};
  add('reg','<b>只建基因的新亞種</b>：「分類設定」的「AI 在既有基因座加專屬等位」選 1～3 個、「AI 新增全新基因座」選 0 個，AI 建立亞種時只會在既有的基因座各加 1 個這個亞種專屬的等位，不另建基因座。個體「登錄資料修正」的「AI 補登錄為新亞種」有自己的選項（預設只建基因）。');
  add('genes','<b>合理性檢定與合併</b>：「合理性檢定」分段列出疑似重複的等位與基因座（同名、同色票、連到同一個部位、只為一個亞種建的小基因座），只是提示、不會自動修改，不需要的可以「忽略」；也可以按「AI 檢查基因庫」。按「預覽合併…」先看每個等位併到哪裡、受影響的個體（基因型、交易名、亞種判定）與會改寫的規則，確認後才套用；個體兩份都已經有目標基因座的突變時，放不下的等位會在預覽標出。套用前會留快照，可以「還原這次轉換」；變更紀錄也會記一筆，之後匯入舊的個體檔會自動換算。基因座超過「提醒上限」（預設 30）時會提醒，但不會擋。');})();
+/* 第 203 版：飼主在養殖艙放大縮小生物 */
+(function(){const add=(k,...xs)=>{if(TAB_HELP[k])TAB_HELP[k][1].push(...xs);};add('farm','<b>生物大小</b>（第 203 版）：養殖艙分頁的圖層區有「生物大小」拉桿（50～200%）與「原本大小」，'+TERMS.owner+'也能調（和「移動生物」一起開放或關閉）；生物和棲息地畫在同一張像素畫布上，像素點大小一致。大小跟著位置存在瀏覽器，也會記在組合與房間'+TERMS.code+'裡。');})();
 
 ;(function(){var go=function(){if(GH_REST.ok)return;var s=document.createElement('script');s.src='rest.js';s.async=true;document.head.appendChild(s);};setTimeout(go,0);})();
