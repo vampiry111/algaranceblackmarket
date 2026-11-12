@@ -3406,7 +3406,7 @@ function hxMountAdmin(){const el=document.getElementById('tab-hab');if(!el)retur
 function axAdminData(){const L=STORE.acc||[];const slots=new Set();L.forEach(a=>(a.slots||[]).forEach(k=>slots.add(k)));const wn=k=>{const w=(STORE.wear||[]).find(w=>w.k===k);return w?(w.n||w.k):k;};
  return{L,names:L.map(a=>a.name||a.id).filter(Boolean),n:L.length,slots:slots.size,subs:(STORE.accSub||[]).length,slotNames:[...slots].map(wn),kinds:axUniq(L.map(a=>a.kind)),
   cx:L.map(a=>axCxItem(a.name||a.id,a.kind||'',a.silRaw?(imgSrc(a.sil)||''):'',a.silRaw?'':(imgSrc(a.sil)||''),imgSrc(a.img)||'')),
-  cta:`<button type="button" class="ax-go" data-act="farmTry">✦ 養殖艙（${TERMS.shop}模式）</button>`};}
+  cta:`<button type="button" class="ax-go" data-act="farmTry"><span class="ax-gl">ENTER<small>養殖艙（${TERMS.shop}模式）</small></span><i aria-hidden="true">→</i></button>`};}
 function axMountAdmin(){const el=document.getElementById('tab-acc');if(!el)return;el.classList.add('ax-on');el.querySelectorAll(':scope>.ax-hero').forEach(x=>x.remove());const h=axHero(axAdminData(),'adm');
  const help=el.querySelector(':scope>details.help');if(help)help.insertAdjacentHTML('afterend',h);else el.insertAdjacentHTML('afterbegin',h);cxBoot('ax-adm',!!el.querySelector(':scope>.ax-hero.ax-enter'));}
 function ixEnter(){const t=IX.enterAt||0;const d=Date.now()-t;if(!t||d>1800)return'';return` ix-enter" style="--ix-o:-${Math.max(0,d)}ms`;}
@@ -3935,6 +3935,7 @@ function pxAccPix(cv,w,h,line){if(!cv||!cv.width)return null;w=Math.max(1,Math.r
  if(line){const id=g.getImageData(0,0,w,h),a=id.data;const A=new Uint8Array(w*h);for(let i=0;i<w*h;i++)A[i]=a[i*4+3]?1:0;const [r,gg,bb]=pxRgb(line);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(A[i])continue;if((x>0&&A[i-1])||(x<w-1&&A[i+1])||(y>0&&A[i-w])||(y<h-1&&A[i+w])){a[i*4]=r;a[i*4+1]=gg;a[i*4+2]=bb;a[i*4+3]=255;}}g.putImageData(id,0,0);}
  m.set(key,c);if(m.size>60)m.delete(m.keys().next().value);return c;}
+function ptryModeTxt(){const OK=okCur();return typeof FARM!=='undefined'&&FARM.on?`${TERMS.shop}模式・全部原圖`:OK?`已解鎖・${(OK.owner||{}).name||OK.owner&&OK.owner.id||''}`:'預覽・有浮水印';}
 function pstSide(){const perm=pstPerm();const T=PST_TH[PST.theme]||PST_TH.atelier;const fx=pstThemeFx();const tf=pstTf();const sel=PST.sel;const st=tf[sel]||{};const i=pstInfo();const txt=i?pstText({info:i,T,perm}):{title:'',sub:'',tag:'',words:[]};
  const sec=(n,t,body,cls)=>`<section class="ptry-sec pst-sec${cls?' '+cls:''}"><h4 class="ptry-sh"><b>${n}</b>${t}</h4>${body}</section>`;
  const themes=Object.entries(PST_TH).map(([k,o])=>`<button type="button" class="pst-th pth-${k}" data-pst="theme|${k}" aria-pressed="${PST.theme===k}"><span class="pst-sw" aria-hidden="true"></span><span class="pst-tn"><b>${H(o.n)}</b><small>${H(o.desc)}</small></span></button>`).join('');
@@ -6256,6 +6257,8 @@ function podYaw(){if(POD.tab==='ind')return null;return podClamp(POD.cam.yaw,pod
 function podHabCfg(code){if(podShop())return rmCfg().hab[code]||{};const r=mrRoomAll()||{};return((r.habs||{})[code]||{}).cfg||{};}
 function podSnaps(code){return amSnapsOf(podHabCfg(code));}
 function podSetPos(code,o){const k=podPosKey(code);const p={...(MR.pos[k]||{}),...o};Object.keys(p).forEach(q=>{if(p[q]==null)delete p[q];});if(Object.keys(p).length)MR.pos[k]=p;else delete MR.pos[k];if(okCur())mrSave();}
+function podBare(fn){const run=MR_LOCK.then(async()=>{const keep=S;const paper=(PUB.sp&&PUB.sp.paper)||{};S={...S,room:{hab:{},tpls:[],gal:{}},looks:{poses:[],def:{},parts:(paper.parts||[]).map(x=>({id:'pt_'+x.k,key:x.k,n:x.n,al:x.al||[]})),migrated:1},inds:[],habitats:[]};
+  try{return await fn();}finally{S=keep;}});MR_LOCK=run.catch(()=>{});return run;}
 async function podDownload(){const kind=POD.tab;const iss=podIssues(kind);if(iss.length){toast('不能下載：'+iss.join('、'));return null;}let F=POD.fr;if(!F){toast('還沒有畫面');return null;}/* 第 189 版：搖擺是即時合成的，下載時才算含搖擺的那一輪 */if(podLvBaked(F,kind)){try{toast('輸出中…',3000);F=await podFramesBaked(kind);}catch(e){toast('輸出失敗：'+((e&&e.message)||e),6000);return null;}}
  const OK=okCur();const b=ptryBody();const h=podHab();const ids=podAccs().map(y=>y.a.id);const official=!podShop()&&!!OK&&!OK.test&&kind!=='hab'&&podMine();
  const code=official?outfitCode(b.id,[...ids,...(kind==='pod'&&h?['hab:'+h.code]:[])]):'';const who=OK&&OK.owner?OK.owner.name||OK.owner.id:'';

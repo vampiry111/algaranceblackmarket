@@ -1257,32 +1257,12 @@ button.ai::before,.note::before{white-space:pre}
 .hx-row .hx-st{background:none;font-size:10px;letter-spacing:.12em;color:#9fd36a;animation:hxBlink 1.2s steps(1) infinite}.hx-st.nw{color:#f3c94a}
 @keyframes hxBlink{50%{opacity:.3}}
 /* 右：探勘面板 */
-.hx-r{background:var(--hx-bg);color:var(--hx-cream);border-radius:26px;padding:16px;min-width:0}
+.hx-r{min-width:0;position:relative}
 .hx-pn{display:flex;flex-direction:column;gap:12px;animation:hxSlide .6s cubic-bezier(.2,.7,.2,1) both}
 @keyframes hxSlide{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.hx-top{display:flex;align-items:flex-start;gap:12px}
-.hx-no{font:800 30px/1 var(--f-display);padding-top:6px}
-.hx-name{flex:1;min-width:0;display:flex;align-items:center;gap:12px;background:var(--hx-cream);color:#2f4a17;border-radius:24px;padding:12px 14px}
-.hx-star{flex:none;width:52px;height:52px;border:1.5px solid var(--hx-green);border-radius:50%;display:grid;place-items:center;font-size:24px;color:var(--hx-green)}
-.hx-cap{flex:1;min-width:0;border:1.5px solid var(--hx-green);border-radius:40px;padding:6px 16px}
-.hx-script{display:block;font:400 28px/1.05 'Pinyon Script',cursive;color:var(--hx-green)}
-.hx-cap b{font:900 20px var(--f-display);color:#2f4a17}
-.hx-en{font:800 12px var(--f-display);text-transform:uppercase;letter-spacing:.02em}
-.hx-arch{position:relative;height:230px;border-radius:130px 130px 24px 24px;overflow:hidden;background:#20301a}
-.hx-arch img.hx-flat{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(6px) saturate(.6);transform:scale(1.06);transition:filter .6s,transform .6s}
-.hx-arch img.hx-flat.on{filter:none;transform:none}
 .hx-cov{position:absolute;inset:0;display:grid;place-items:center;background:var(--hx-cream);color:#2f4a17;--ink:#2f4a17}
 .hx-cov .cc-photo,.hx-cov .cc-raw{width:100%;height:100%;object-fit:cover}.hx-cov .cc-sil{width:62%;height:62%}
-.hx-arch svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;fill:none;stroke:rgba(255,255,255,.82);stroke-width:1}
-.hx-arch .hx-dot{fill:#fff;stroke:none}
-.hx-code{position:absolute;left:14px;bottom:12px;font:700 10px var(--f-mono);letter-spacing:.14em;color:#fff;border:1px solid rgba(255,255,255,.75);border-radius:12px;padding:3px 9px;background:rgba(0,0,0,.25)}
-.hx-info{display:flex;gap:14px;align-items:center}
-.hx-disc{flex:none;width:118px;height:118px;border-radius:50%;background:var(--hx-green);color:var(--hx-cream);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;padding:8px;box-sizing:border-box}
-.hx-disc small{font:700 9.5px var(--f-mono);letter-spacing:.16em}.hx-disc b{font:900 18px/1.15 var(--f-display);max-width:100%;overflow-wrap:anywhere}
-.hx-txt{flex:1;min-width:0}.hx-txt p{margin:0 0 8px;font-size:13px;line-height:1.65;color:#d9d7c9}
 .hx-chips{display:flex;flex-wrap:wrap;gap:6px}.hx-chips span{font:700 10.5px var(--f-mono);border:1px solid var(--hx-lime);color:var(--hx-lime);border-radius:12px;padding:2px 8px}
-.hx-go{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:0 20px;border:0;border-radius:26px;background:var(--hx-lime);color:#121211;font:700 14px var(--f-body);cursor:pointer;text-align:left}
-.hx-go:hover{background:#c7e676}
 /* 進場：NOW BOARDING 翻牌後往上翻走 */
 .hx-gate-ov{display:none}
 .hx-enter .hx-gate-ov{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;position:absolute;inset:0;z-index:9;background:#121211;color:#f3efe2;transform-origin:50% 0;animation:hxFold .6s cubic-bezier(.6,0,.3,1) calc(1s + var(--hx-o,0ms)) both}
@@ -1365,13 +1345,8 @@ button.ai::before,.note::before{white-space:pre}
 .ax-ttl b{font:italic 700 30px/1 'Bodoni Moda',serif;letter-spacing:.02em}
 .ax-ttl i{font:italic 500 26px/1 'Bodoni Moda',serif}
 .ax-ttl small{flex-basis:100%;font:700 8.5px/1.5 var(--f-mono);letter-spacing:.06em;opacity:.85;text-transform:uppercase}
-.ax-col{position:absolute;right:0;top:0;bottom:0;width:20%;min-width:150px;padding:16px 18px;box-sizing:border-box;background:#0e0e13;color:#f2f2f7;display:flex;flex-direction:column;align-items:flex-end;text-align:right;z-index:1}
-.ax-yr{font:500 22px var(--f-body)}
-.ax-col-k{font:400 11px var(--f-body);margin:12px 0 8px;opacity:.85}
-.ax-col em{font:500 15px var(--f-body);font-style:normal}
-.ax-col ul{list-style:none;margin:2px 0 0;padding:0;font:400 12px/1.32 var(--f-body);overflow:hidden;min-height:0}
-.ax-col li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;padding:0 4px;transition:background .3s,color .3s}
-.ax-col li.on{background:var(--ax-blue);color:#fff}
+.ax-col{position:absolute;right:0;top:0;bottom:0;width:20%;min-width:150px;background:#0e0e13;overflow:hidden;z-index:1}
+.ax-col .ax-birds{inset:0}
 .ax-s1{left:15%;top:84px;width:84px;height:84px;--td:3.8s}
 .ax-s2{left:56%;top:150px;width:62px;height:62px;--td:4.6s;--tdl:-1.7s}
 .ax-s3{left:11%;top:4px;width:22px;height:22px;--c:#8f93ff;--td:2.9s;--tdl:-.6s}
@@ -1409,12 +1384,6 @@ button.ai::before,.note::before{white-space:pre}
 .ax-birds{position:absolute;inset:-30px -10%;pointer-events:none}
 .ax-bird{position:absolute;left:var(--x);top:var(--y);width:calc(46px * var(--s));height:auto;fill:var(--ax-blue2);opacity:.92;animation:axFly 9s ease-in-out var(--dl) infinite}
 @keyframes axFly{0%,100%{transform:translate(0,0) rotate(-4deg)}25%{transform:translate(10px,-8px) rotate(2deg) scaleY(.82)}50%{transform:translate(22px,-2px) rotate(-2deg)}75%{transform:translate(12px,6px) rotate(3deg) scaleY(.86)}}
-.ax-r{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-width:0}
-.ax-ring{width:min(210px,100%);aspect-ratio:1/1;border:1px dashed rgba(255,255,255,.55);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;font:400 12.5px/1.45 var(--f-display);color:#e6e6f0;padding:22px;box-sizing:border-box}
-.ax-ring>span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ax-rk{font:700 9.5px var(--f-mono)!important;letter-spacing:.18em;color:#a9abff;margin-bottom:4px}
-.ax-go{min-height:44px;padding:0 22px;border:1px solid #fff;border-radius:24px;background:var(--ax-blue);color:#fff;font:700 13px var(--f-body);letter-spacing:.04em;cursor:pointer;transition:background .2s,color .2s}
-.ax-go:hover{background:#fff;color:var(--ax-blue)}
 /* 下段 */
 .ax-bot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;padding:12px 18px;background:var(--ax-grey);border-top:1px solid var(--ax-ink)}
 .ax-sig{font:italic 400 18px 'Bodoni Moda',serif;color:var(--ax-txt)}
@@ -1438,7 +1407,6 @@ button.ai::before,.note::before{white-space:pre}
 .ax-enter .ax-data>div{animation:gaRise .5s var(--tw-ease) calc(.55s + var(--i)*.08s + var(--ax-o,0ms)) both}
 .ax-enter .ax-c{animation:axStage .7s cubic-bezier(.2,.7,.2,1) calc(.4s + var(--ax-o,0ms)) both}
 @keyframes axStage{from{opacity:0;transform:scale(.9);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
-.ax-enter .ax-ring>span{animation:axTxt .6s cubic-bezier(.2,.7,.2,1) calc(.55s + var(--i,0)*.06s + var(--ax-o,0ms)) both}
 .ax-enter ~ *{animation:gaRise .6s var(--tw-ease) .9s both}
 /* 整個分頁：卡片右上角的小十字星（方向固定，游標移上去時閃爍）、試穿列 */
 .ax-on .ccard::before{content:'';position:absolute;right:8px;top:8px;width:16px;height:16px;z-index:5;pointer-events:none;background:var(--ax-blue,#1f22c9);-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 0C54 34 66 46 100 50C66 54 54 66 50 100C46 66 34 54 0 50C34 46 46 34 50 0Z'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 0C54 34 66 46 100 50C66 54 54 66 50 100C46 66 34 54 0 50C34 46 46 34 50 0Z'/></svg>") center/contain no-repeat}
@@ -1450,10 +1418,21 @@ button.ai::before,.note::before{white-space:pre}
  .ax-top{height:300px}.ax-globe{width:130%;left:-30%;top:-40%}.ax-tl{max-width:62%}.ax-cal p+p{display:none}
  .ax-dig{left:14px;top:76px;gap:5px}.ax-dig b{width:34px;height:34px;font-size:16px}.ax-dig b.ax-dash{width:18px}
  .ax-ttl{left:14px;top:128px;max-width:60%}.ax-ttl b{font-size:24px}.ax-ttl i{font-size:20px}
- .ax-col{width:34%;min-width:0;padding:12px 10px}.ax-col ul{font-size:11px}.ax-yr{font-size:18px}
+ .ax-col{width:34%;min-width:0}
  .ax-s1{left:42%;top:196px;width:64px;height:64px}.ax-s2{left:52%;top:120px;width:40px;height:40px}.ax-s5{right:24%;top:236px;width:48px;height:48px}.ax-s6{left:58%;top:30px}}
 @media (prefers-reduced-motion:reduce){.ax-hero *,.ax-hero,.ax-enter ~ *,.ax-on .ccard::before{animation:none!important}.ax-px{display:none}}
 
+
+/* 第 202 版：右欄和左邊 Atelier 資料列呼應——小標、斜體大字、字距中文、細線資料列式的按鈕 */
+.ax-r{position:relative;z-index:3;display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:0;text-align:right;align-items:stretch}
+.ax-r .ax-k,.ax-r .ax-zh{align-self:flex-end}
+.ax-rt{margin:0;font:italic 400 clamp(34px,4.2vw,58px)/1 'Bodoni Moda','Noto Serif TC',serif;color:#fff;letter-spacing:.01em}
+.ax-go{margin:10px 0 0;display:flex;justify-content:space-between;align-items:baseline;width:100%;padding:8px 0;border:0;border-top:1px solid rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.18);background:none;color:#fff;cursor:pointer;text-align:left;transition:background .25s,padding .25s}
+.ax-go .ax-gl{font:700 10.5px var(--f-mono);letter-spacing:.16em}.ax-go .ax-gl small{margin-left:8px;font:700 13px var(--f-display);letter-spacing:.12em;color:#d9dafc}
+.ax-go i{font:italic 400 24px 'Bodoni Moda',serif;transition:transform .25s}
+.ax-go:hover,.ax-go:focus-visible{background:var(--ax-blue);padding:8px 12px}.ax-go:hover i,.ax-go:focus-visible i{transform:translateX(4px)}
+.ax-enter .ax-rt{animation:axTxt .8s cubic-bezier(.2,.7,.2,1) calc(.45s + var(--ax-o,0ms)) both}
+@media (max-width:860px){.ax-r{text-align:left}.ax-r .ax-k,.ax-r .ax-zh{align-self:flex-start}}
 /* ===== 第 67 版：育種道具「CATALYST」（黑底海報、紫藍階梯色塊、切開的月球、代碼化道具圖） ===== */
 .ix-hero{--ix-p1:#3a2cff;--ix-p2:#9a6bff;--ix-p3:#e2c2ff;--ix-c:#8fe3ff;--ix-k:#ff8be0;margin:0 0 20px;padding:12px;background:#38383c;border:3px double var(--ink)}
 .ix-fr{position:relative;isolation:isolate;overflow:hidden;background:#050507;color:#fff;border:1px solid rgba(255,255,255,.75);border-radius:22px;padding:20px 26px 24px}
@@ -2956,6 +2935,56 @@ html{scrollbar-gutter:stable}
 .ccacc .cc-art{left:25%;right:25%;top:38%;height:34%}
 .ccacc .cc-art>img,.ccacc .cc-art>.cc-sil{max-width:100%;max-height:100%;object-fit:contain;filter:grayscale(1) contrast(1.15) drop-shadow(.5px 0 0 #fff) drop-shadow(-.5px 0 0 #fff) drop-shadow(0 .5px 0 #fff) drop-shadow(0 -.5px 0 #fff)}
 .ccacc .cc-art>.cc-raw{filter:drop-shadow(.5px 0 0 #fff) drop-shadow(-.5px 0 0 #fff) drop-shadow(0 .5px 0 #fff) drop-shadow(0 -.5px 0 #fff)!important}
+/* 第 202 版（內測回報第 5 項補完）：飾品的「詳細資訊」海報與展開面板大圖——完整顯示（不裁切）、去背圖加白色外輪廓 */
+.cpacc .cp-oval .cp-photo,.cpacc .cp-oval .cp-sil{width:auto;height:auto;max-width:72%;max-height:72%;object-fit:contain;filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)}
+.cpacc .cp-oval .cp-sil{width:72%;height:72%}
+.cpacc.cp-gray .cp-oval .cp-photo{filter:grayscale(1) contrast(1.1) drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)}
+.cpacc .cp-oval .cc-raw{filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)!important}
+.ipacc img.ipn-ph{border:0;background:none;max-height:360px;object-fit:contain;filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)}
+.ipacc .ip-sil .cp-sil{filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)}
+/* 第 202 版：棲息地探勘面板（右邊）——沒有外框、去背主圖放大並被面板邊緣切掉、行星軌道裝飾、說明疊在圖的下緣、細線資料列、黑色切角按鈕 */
+.hx-r{overflow:hidden}
+.hx-pn{position:relative;display:block;min-height:800px;height:100%;padding:6px 6px 0;box-sizing:border-box;display:flex;flex-direction:column}
+.hx-no{font:800 54px/1 var(--f-mono);letter-spacing:-.04em;position:relative;z-index:3}
+.hx-vt{position:absolute;right:6px;top:6px;writing-mode:vertical-rl;font:700 11px var(--f-mono);letter-spacing:.38em;color:var(--muted);z-index:3}
+.hx-vt b{display:block;font:italic 500 26px 'Bodoni Moda',serif;letter-spacing:0;margin-bottom:6px;color:var(--ink)}
+.hx-nm2{position:relative;z-index:3;margin:6px 54px 0 0}
+.hx-nm2 h3{margin:0;font:900 38px/1.1 var(--f-display)}
+.hx-nm2 span{font:700 12px var(--f-mono);letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+.hx-art{position:absolute;left:0;right:0;top:112px;height:430px}
+.hx-orb{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.hx-orb *{fill:none;stroke:var(--marine);stroke-width:1}
+.hx-orb .d{stroke-dasharray:3 4}.hx-orb .pl{fill:var(--marine);stroke:none}.hx-orb .pb{fill:var(--c1);opacity:.55;stroke:none}
+.hx-orb text{font:700 8px var(--f-mono);letter-spacing:.18em;fill:var(--marine);stroke:none}
+.hx-cut{position:absolute;right:-18%;bottom:0;width:108%;height:430px;object-fit:cover;object-position:center;z-index:2;display:block}
+.hx-cut.hx-flat{-webkit-mask:var(--m) center/cover no-repeat;mask:var(--m) center/cover no-repeat;filter:blur(6px) saturate(.6);transition:filter .6s}
+.hx-cut.hx-flat.on{filter:saturate(1.2) contrast(1.05)}
+.hx-cut.hx-rawcut{object-fit:contain;object-position:right bottom}
+.hx-cut.hx-fade{-webkit-mask:radial-gradient(ellipse 52% 50% at 55% 50%,#000 60%,transparent 100%);mask:radial-gradient(ellipse 52% 50% at 55% 50%,#000 60%,transparent 100%)}
+.hx-cut.hx-cov{right:0;width:100%;background:none;color:var(--ink)}
+.hx-desc{position:relative;z-index:3;margin:340px 0 0;max-width:340px;font-size:13.5px;line-height:1.7;font-weight:400;letter-spacing:normal;color:var(--muted);text-shadow:0 0 2px var(--panel),0 0 2px var(--panel)}
+.hx-biome{position:relative;z-index:3;margin-top:12px;font:700 11px var(--f-mono);letter-spacing:.22em;color:var(--c5)}
+.hx-biome b{font:900 20px var(--f-display);letter-spacing:.1em;color:var(--ink);margin:0 8px}
+.hx-biome .hx-code{margin-left:12px;color:var(--muted);letter-spacing:.14em}
+.hx-facts{position:relative;z-index:3;margin:10px 0 0;padding:10px 0 0;border-top:1px solid var(--ink);display:grid;grid-template-columns:repeat(4,auto);gap:6px 18px;justify-content:start}
+.hx-facts i{display:block;font:400 9px var(--f-mono);font-style:normal;letter-spacing:.14em;color:var(--muted)}
+.hx-facts b{font:700 13px var(--f-mono)}
+.hx-go{position:relative;z-index:3;margin-top:auto;padding:14px 20px;min-height:50px;border:0;background:var(--ink);color:var(--panel);font:700 15px var(--f-body);text-align:center;cursor:pointer;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,0 100%)}
+.hx-go:hover{background:var(--marine);color:#fff}
+.hx-pn>.hx-go{margin-top:auto}
+.hx-facts+.hx-go,.hx-biome+.hx-go{margin-top:18px}
+@media (max-width:860px){.hx-pn{min-height:760px}.hx-cut{right:-26%;width:112%}}
+/* 養殖艙右上角的鑰匙欄（縮小版的鑰匙輸入，取代「預覽・有浮水印」） */
+#tryon .ptry-key{grid-column:1/-1;grid-row:3;justify-self:end;display:grid;grid-template-columns:auto auto;gap:4px 10px;align-items:center;width:min(100%,330px);margin:0;position:relative;z-index:2}
+#tryon .ptry-key .ptk-k{font:700 9.5px var(--f-mono);letter-spacing:.14em;color:#a9abff;white-space:nowrap}
+#tryon .ptry-key .ptk-m{font:700 9.5px var(--f-mono);letter-spacing:.08em;color:#c9cae0;opacity:.8;justify-self:end;white-space:nowrap}
+#tryon .ptry-key .ptk-r{grid-column:1/-1;display:flex;gap:6px;align-items:center}
+#tryon .ptry-key input{flex:1;min-width:0;height:32px;box-sizing:border-box;background:#06060a!important;border:1px solid #4a4cc0!important;color:#bff;font:700 12.5px var(--f-mono);letter-spacing:.1em;padding:6px 8px;border-radius:6px;text-transform:uppercase}
+#tryon .ptry-key input:focus{outline:none;border-color:#fff}
+#tryon .ptry-key .ptk-b{flex:none;background:var(--marine,#1f22c9);color:#fff;border:1px solid #fff;border-radius:14px;padding:0 14px;font:700 12px var(--f-body);cursor:pointer;height:32px;min-height:0;align-self:center}
+#tryon .ptry-key .ptk-b:disabled{opacity:.6;cursor:default}
+#tryon .ptry-key .ptk-e{grid-column:1/-1;font:700 10.5px/1.4 var(--f-body);color:#ff9aa8}
+@media (max-width:760px){#tryon .ptry-key{grid-column:1/-1;width:100%}}
 </style>
 
 <div class="wrap">

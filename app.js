@@ -1365,7 +1365,7 @@ function renderPublicPage(){const box=document.getElementById('pubview');if(!box
    ${sp.genes.poly.length?`<div class="panel"><h3>多基因性狀</h3>${sp.genes.poly.map(q=>`<div class="tiny">${H(q.name)} ${H(q.en)}${q.unit?'（'+H(q.unit)+'）':''}</div>`).join('')}</div>`:''}`;}
  else if(PUB.tab==='hab'&&sp.habitats){html+=pubCatList('hab',sp.habitats,sp);}
  else if(PUB.tab==='items'&&sp.items){html+=sp.items.length?pubCatList('item',sp.items,sp):'<p class="muted">尚無道具。</p>';}
- else if(PUB.tab==='acc'){const L=pubAccFor(sp);html+=ptryBar(sp)+(L.length?pubCatList('acc',L,sp):'<p class="muted">目前沒有飾品。</p>');}
+ else if(PUB.tab==='acc'){const L=pubAccFor(sp);html+=(L.length?pubCatList('acc',L,sp):'<p class="muted">目前沒有飾品。</p>');}
  else if(PUB.tab==='farm'){html+=farmPub(sp);}
  else if(PUB.tab==='show'){html+=showPub(sp);}
  else if(PUB.tab==='calc'){html+=renderCalcPub();}
@@ -1875,7 +1875,7 @@ function snapV(){var f=ghRestGet("snapV");return new.target?Reflect.construct(f,
 function cposter(v,foot,tpl,src){const o=tpl?tpl.opts:{};const kw=o.kw===false?[]:(v.kw||[]);const rows=[...(v.rows||[]),kw.length?['關鍵字',kw.join('、')]:null].filter(r=>r&&r[1]);
  const link=(u,t)=>u?`<a class="b cp-link" href="${H(u)}" target="_blank" rel="noopener">${H(t)} ↗</a>`:'';
  return`<div class="mhead"><div style="flex:1;min-width:0" class="tiny muted mono">${H(v.kindLabel||'')}${v.code?' · '+H(v.code):''}</div><button class="g" data-act="mclose" id="mclose">關閉</button></div>
- <article class="cposter${o.gray?' cp-gray':''}">${cpHead(v.en||v.name,v.en?H(v.name):'',v.stars||v.mut?starsHTML(v.stars)+mutHTML(v.mut):'')}
+ <article class="cposter${o.gray?' cp-gray':''}${v.side===SIDE_EN.acc?' cpacc':''}">${cpHead(v.en||v.name,v.en?H(v.name):'',v.stars||v.mut?starsHTML(v.stars)+mutHTML(v.mut):'')}
   <div class="cp-mid"><div class="cp-ow"><div class="cp-oval">${catArt(v,true)}</div>${v.badge?`<span class="cp-badge">${H(v.badge)}</span>`:''}</div></div>
   <footer class="cp-f">${v.desc?`<p class="cp-desc">${H(v.desc)}</p>`:''}${rows.length?`<dl class="cp-dl">${rows.map(r=>`<dt>${H(r[0])}</dt><dd>${H(r[1])}</dd>`).join('')}</dl>`:''}
    ${v.price?`<div class="cp-price">✦ ${H(v.price)}</div>`:''}<div class="row cp-btns">${link(v.url,'商品說明')}${link(v.buyUrl,'前往購買')}${claimBtn(v)}${foot||''}</div></footer>${wmLayers(tpl,src||wmSrcAdmin)}</article>`;}
@@ -2288,7 +2288,7 @@ const tierTag=t=>t?`<span class="tier t-${H(t.c)}" title="${H(t.zh)}">${H(t.c)} 
 /* 商品展開的詳細內容（堆疊點開、格狀點開、圖鑑的「展開詳細內容」都相同）；opt.poster：開啟${'詳細資訊'}海報的屬性 */
 function catPanel(v,opt){opt=opt||{};const art=v.img?`<img class="ipn-ph" src="${H(v.img)}" alt="${H(v.name)}">`:v.sil?`<span class="ip-sil"><span class="cp-sil" style="--m:url('${H(v.sil)}')"></span></span>`:'';
  const rows=[...(v.rows||[]),['稀有度',v.tier?`${v.tier.zh} ${v.tier.en}`:''],['關鍵字',(v.kw||[]).join('、')]].filter(r=>r&&r[1]);
- return`<div class="ipanel${art?'':' noimg'}">${art?`<div class="ipn-img">${art}</div>`:''}<div class="ipn-m">
+ return`<div class="ipanel${art?'':' noimg'}${v.side===SIDE_EN.acc?' ipacc':''}">${art?`<div class="ipn-img">${art}</div>`:''}<div class="ipn-m">
   <div class="ipn-h"><b>${H(v.name)}</b>${v.isNew?'<span class="newb">NEW</span>':''} ${v.en?`<span class="tiny muted">${H(v.en)}</span>`:''}</div>
   <div class="tiny muted">${H(v.kindLabel||'')}${v.badge?' · '+H(v.badge):''}${v.code?` · <span class="mono">${H(v.code)}</span>`:''}${v.stars?' · '+'✦'.repeat(v.stars):''}${v.mut?' · 變異 '+RN[v.mut]:''}</div>
   ${v.desc?`<p class="cp-desc" style="margin:6px 0 0">${H(v.desc)}</p>`:''}${rows.length?`<dl class="cp-dl ipn-dl">${rows.map(r=>`<dt>${H(r[0])}</dt><dd>${H(r[1])}</dd>`).join('')}</dl>`:''}
@@ -2306,12 +2306,12 @@ function lvEntry(){var f=ghRestGet("lvEntry");return new.target?Reflect.construc
 function pubCatList(cat,list,sp){const k='pub'+cat;const mode=lvMode(k);const L0=list.filter(x=>lvHit(k,[x.name,x.en,x.desc,x.kind,x.code,...(x.kw||[])])&&(!lvF(k,'kind')||x.kind===lvF(k,'kind')));
  const L=sortBy(L0,lvSort(k),catSortGet(sp&&sp.tiers));const kinds=[...new Set(list.map(x=>x.kind).filter(Boolean))];const op=pubOpenKey(k);
  let html=listBar(k,{ph:'名稱、關鍵字',shown:L.length,total:list.length,modes:cat==='hab'?lvModes('ticket','card','grid','stack'):lvModes('card','grid','stack'),sort:1,collapse:mode==='stack',filters:kinds.length>1?[['kind','類別',kinds.map(x=>[x,x])]]:[]});
- const at=x=>`data-pubcat="${cat}|${list.indexOf(x)}"`;const panel=(x,v)=>op===String(list.indexOf(x))?`<div class="lvedit pubpanel" id="pubopen-${k}">${catPanel(v,{poster:at(x),extra:cat==='acc'?ptryAccBtn(x):''})}</div>`:'';
+ const at=x=>`data-pubcat="${cat}|${list.indexOf(x)}"`;const panel=(x,v)=>op===String(list.indexOf(x))?`<div class="lvedit pubpanel" id="pubopen-${k}">${catPanel(v,{poster:at(x),extra:cat==='acc'?ptryAccBtn(x):cat==='hab'?hxGoBtn(x):''})}</div>`:'';
  if(mode==='ticket'&&cat==='hab')html+=hxTickets(L,list,sp,k,op,at,panel);
- else if(mode==='card')html+=`<div class="ccgrid lvtiles">${L.map(x=>{const v=pubCatView(cat,x,sp);const ix=list.indexOf(x);return cardWrap(ccard(v,at(x)),pubOpenBtn(k,ix)+linkBtn(v.buyUrl,'前往購買')+claimBtn(v)+(cat==='acc'?ptryAccBtn(x):''))+panel(x,v);}).join('')}</div>`;
+ else if(mode==='card')html+=`<div class="ccgrid lvtiles">${L.map(x=>{const v=pubCatView(cat,x,sp);const ix=list.indexOf(x);return cardWrap(ccard(v,at(x)),pubOpenBtn(k,ix)+linkBtn(v.buyUrl,'前往購買')+claimBtn(v)+(cat==='acc'?ptryAccBtn(x):cat==='hab'?hxGoBtn(x):''))+panel(x,v);}).join('')}</div>`;
  else if(mode==='grid')html+=`<div class="catgrid lvtiles">${L.map(x=>{const v=pubCatView(cat,x,sp);const ix=list.indexOf(x);return gtile(v,`data-pubopen="${k}|${ix}" aria-expanded="${op===String(ix)}"`,op===String(ix))+panel(x,v);}).join('')}</div>`;
  else html+=`<div class="lvwrap lv-stack">${L.map(x=>{const v=pubCatView(cat,x,sp);const ix=list.indexOf(x);
-   return lvItem(k,ix,`<span class="lvsum">${v.img?`<img class="lvs-th" src="${H(v.img)}" alt="" loading="lazy">`:''}<b>${H(v.name)}</b>${catSumX(v)} <span class="tiny muted">${H(v.en)}${v.tag?' · '+H(v.tag):''}</span>${v.price?` <span class="pc-price">${H(v.price)}</span>`:''}${v.buyUrl?' '+linkBtn(v.buyUrl,'前往購買'):''}</span>`,`<div class="lvbody">${catPanel(v,{poster:at(x),extra:cat==='acc'?ptryAccBtn(x):''})}</div>`);}).join('')||'<p class="muted">目前沒有項目。</p>'}</div>`;
+   return lvItem(k,ix,`<span class="lvsum">${v.img?`<img class="lvs-th" src="${H(v.img)}" alt="" loading="lazy">`:''}<b>${H(v.name)}</b>${catSumX(v)} <span class="tiny muted">${H(v.en)}${v.tag?' · '+H(v.tag):''}</span>${v.price?` <span class="pc-price">${H(v.price)}</span>`:''}${v.buyUrl?' '+linkBtn(v.buyUrl,'前往購買'):''}</span>`,`<div class="lvbody">${catPanel(v,{poster:at(x),extra:cat==='acc'?ptryAccBtn(x):cat==='hab'?hxGoBtn(x):''})}</div>`);}).join('')||'<p class="muted">目前沒有項目。</p>'}</div>`;
  return html;}
 
 /* ---- 基因庫 ---- */
@@ -4471,15 +4471,20 @@ async function hxFlatMake(url){const im=await decorImg(url);const iw=im.naturalW
 function hxFlat(url){if(!url)return Promise.resolve('');if(HX.flat.has(url))return Promise.resolve(HX.flat.get(url));if(HX.busy.has(url))return new Promise(r=>setTimeout(()=>r(hxFlat(url)),300));
  HX.busy.add(url);return hxFlatMake(url).then(u=>{HX.flat.set(url,u);HX.busy.delete(url);return u;}).catch(()=>{HX.flat.set(url,'');HX.busy.delete(url);return'';});}
 function hxFlatFill(root){(root||document).querySelectorAll('img[data-hxflat]').forEach(im=>{const u=im.dataset.hxflat;hxFlat(u).then(v=>{if(v&&im.isConnected){im.src=v;im.classList.add('on');}});});}
-/* ---- 探勘面板（右邊） ---- */
-function hxPanel(L,i,ctx){const x=L[i];if(!x)return'';const fac=hxFac(x);const cached=x.img&&HX.flat.get(x.img);
- const pic=x.img?`<img class="hx-flat${cached?' on':''}" src="${H(cached||x.img)}" data-hxflat="${H(x.img)}" alt="${H(x.name)}">`:`<span class="hx-cov">${hxCover(x)}</span>`;
+/* ---- 探勘面板（右邊）：第 202 版改版——沒有外框；去背主圖放大、右邊被面板邊緣切掉；行星軌道裝飾；說明疊在圖的下緣；數值是細線資料列；一個黑色「前往棲息地」按鈕 ---- */
+const HX_ORBIT='<svg class="hx-orb" viewBox="0 0 520 300" preserveAspectRatio="none" aria-hidden="true"><ellipse cx="260" cy="150" rx="236" ry="128"/><ellipse class="d" cx="260" cy="150" rx="196" ry="106" transform="rotate(-8 260 150)"/><ellipse cx="260" cy="150" rx="150" ry="82" transform="rotate(10 260 150)"/><ellipse class="d" cx="260" cy="150" rx="112" ry="140" transform="rotate(32 260 150)"/><circle class="pb" cx="40" cy="96" r="13"/><circle class="pl" cx="468" cy="214" r="5"/><circle class="pl" cx="96" cy="232" r="3.5"/><circle class="pb" cx="440" cy="62" r="8"/><circle class="pl" cx="330" cy="24" r="3"/><circle class="pl" cx="176" cy="40" r="4"/><circle class="pl" cx="478" cy="132" r="3"/><path d="M92 40 L132 28"/><text x="140" y="26">ORBIT · T1</text><text x="366" y="262">ALG · PORT</text></svg>';
+function hxFacRows(x){return(x.f||[]).filter(f=>f&&f.n&&isFinite(f.v)).map(f=>`<div><i>${H(f.n)}</i><b>${f.v}${H(f.u&&!/^0/.test(f.u)?f.u:'')}</b></div>`).join('');}
+function hxPanel(L,i,ctx){const x=L[i];if(!x)return'';const rows=hxFacRows(x);const cached=x.img&&HX.flat.get(x.img);
+ /* 主圖：有商品剪影（遮罩）＝用剪影把圖切出來；剪影本身是原色去背圖（raw）＝直接用；只有圖＝橢圓淡出；都沒有＝封面 */
+ const src=cached||x.img;const cut=x.raw?`<img class="hx-cut hx-rawcut" src="${H(x.raw)}" alt="${H(x.name)}">`:x.img&&x.sil?`<img class="hx-cut hx-flat${cached?' on':''}" src="${H(src)}" data-hxflat="${H(x.img)}" style="--m:url('${H(x.sil)}')" alt="${H(x.name)}">`:x.img?`<img class="hx-cut hx-fade hx-flat${cached?' on':''}" src="${H(src)}" data-hxflat="${H(x.img)}" alt="${H(x.name)}">`:`<span class="hx-cut hx-cov">${hxCover(x)}</span>`;
  return`<div class="hx-pn" data-hxpn="${ctx}">
-  <div class="hx-top"><span class="hx-no">${String(i+1).padStart(2,'0')}</span><div class="hx-name"><span class="hx-star" aria-hidden="true">✦</span><div class="hx-cap"><span class="hx-script">Expedition</span><b>${H(x.name)}</b> <span class="hx-en">${H(x.en||x.code)}</span></div></div></div>
-  <div class="hx-arch">${pic}<svg viewBox="0 0 300 250" preserveAspectRatio="none" aria-hidden="true"><circle cx="150" cy="122" r="72"></circle><line x1="150" y1="22" x2="150" y2="232"></line><line x1="58" y1="122" x2="242" y2="122"></line><circle class="hx-dot" cx="150" cy="122" r="6"></circle><circle class="hx-dot" cx="150" cy="50" r="3"></circle></svg><span class="hx-code">${H(x.code)}</span></div>
-  <div class="hx-info"><div class="hx-disc"><small>BIOME</small><b>${H(x.type||'—')}</b><small>${H(x.zone||x.cat||'棲息地')}</small></div>
-   <div class="hx-txt"><p>${H(x.desc||'')}</p>${fac.length?`<div class="hx-chips">${fac.map(f=>`<span>${H(f)}</span>`).join('')}</div>`:''}</div></div>
-  ${ctx==='pub'?`<button type="button" class="hx-go" data-hx="go|${i}">前往探勘 · 查看這一站的車票 <span aria-hidden="true">→</span></button>`:''}</div>`;}
+  <div class="hx-no">${String(i+1).padStart(2,'0')}</div><div class="hx-vt" aria-hidden="true"><b>Expedition</b>EXPEDITION · T1</div>
+  <div class="hx-nm2"><h3>${H(x.name)}</h3><span>${H(x.en||x.code)}</span></div>
+  <div class="hx-art">${HX_ORBIT}${cut}</div>
+  <p class="hx-desc">${H(x.desc||'')}</p>
+  <div class="hx-biome">BIOME<b>${H(x.type||'—')}</b>${H(x.zone||x.cat||'棲息地')}<span class="hx-code">${H(x.code)}</span></div>
+  ${rows?`<div class="hx-facts">${rows}</div>`:''}
+  ${ctx==='pub'?`<button type="button" class="hx-go" data-hx="go|${i}">✦ 前往棲息地 →</button>`:''}</div>`;}
 /* ---- 橫幅＋面板 ---- */
 function hxHero(L,ctx){const n=L.length;const sel=Math.min(HX.sel[ctx]||0,Math.max(0,n-1));HX.sel[ctx]=sel;
  const rows=L.map((x,i)=>`<button type="button" class="hx-row" data-hx="sel|${i}|${ctx}" aria-pressed="${i===sel}" style="--i:${i}"><span class="hx-gate">${String(i+1).padStart(2,'0')}</span><span class="hx-dn">${H(x.name)}</span><span class="hx-de">${H(x.en||x.code)}</span><span class="hx-st${isNewX(x)?' nw':''}">${isNewX(x)?'NEW':HX.visited.has(x.code)?'VISITED':'OPEN'}</span></button>`).join('');
@@ -4502,7 +4507,7 @@ function hxTickets(L,list,sp,k,op,at,panel){return`<div class="hx-tks lvtiles">$
    ${x.desc?`<p>${H(x.desc)}</p>`:''}${fac.length||x.zone?`<div class="hx-chips">${x.zone?`<span>${H(x.zone)}</span>`:''}${fac.map(f=>`<span>${H(f)}</span>`).join('')}</div>`:''}</div>
   <div class="hx-perf" aria-hidden="true"></div>
   <div class="hx-stub"><span class="hx-adm">Admit One · 入場</span><b>${H(x.name)}</b><span class="hx-seat">SEAT ${String.fromCharCode(65+(ix%26))}-${String(ix+1).padStart(2,'0')} · ${H(x.code)}</span><span class="hx-bc" aria-hidden="true" style="background:${hxBar(gaHash(x.code||x.name))}"></span>${v.price?`<span class="pc-price">${H(v.price)}</span>`:''}
-   <button type="button" class="b hx-tear" data-hx="tear|${ix}">${vis?'再看一次 ↗':'出發探勘 →'}</button><span class="hx-sub">${pubOpenBtn(k,ix)}${linkBtn(v.buyUrl,'前往購買')}${claimBtn(v)}</span></div>
+   <button type="button" class="b hx-tear" data-hx="tear|${ix}">${vis?'再次出發 →':'出發探勘 →'}</button><span class="hx-sub">${pubOpenBtn(k,ix)}${linkBtn(v.buyUrl,'前往購買')}${claimBtn(v)}</span></div>
   <div class="hx-stamp" aria-hidden="true">已探勘<br>VISITED · ${H(x.code)}</div>
  </article>${panel(x0,v)}`;}).join('')||'<p class="muted">目前沒有項目。</p>'}</div>`;}
 /* ---- 放進畫面 ---- */
@@ -4510,20 +4515,24 @@ function hxMountAdmin(){var f=ghRestGet("hxMountAdmin");return new.target?Reflec
 function hxMountPub(){const pv=document.getElementById('pubview');if(!pv)return;const on=typeof PUB!=='undefined'&&PUB.tab==='hab'&&PUB.sp&&PUB.sp.habitats&&!PUB.loading;pv.classList.toggle('hx-on',!!on);if(!on)return;
  pv.querySelectorAll('.hx-hero').forEach(x=>x.remove());const ref=pv.querySelector('.lvbar[data-lvbar="pubhab"]');const nav=pv.querySelector('nav.pubnav');const h=hxHero(hxPubList(PUB.sp),'pub');
  if(ref)ref.insertAdjacentHTML('beforebegin',h);else if(nav)nav.insertAdjacentHTML('afterend',h);else return;hxFlatFill(pv);}
+/* 前往養殖艙試用這個棲息地（訪客＝模板生物；有鑰匙＝自己的個體），養殖艙直接停在「棲息地」分頁、選好這一站 */
+async function hxGoPod(code){const m=document.getElementById('modal');if(m&&!m.hidden){m.hidden=true;m.innerHTML='';UI.detail=null;document.body.classList.remove('noscroll');}await podEnter();if(!code)return;POD.tab='hab';POD.hab=code;podSave();pubTryShow();}
+/* 資料頁（圖鑑、格狀、堆疊點開後）的「前往棲息地」 */
+const hxGoBtn=x=>x&&x.code?`<button class="b ptry-btn" type="button" data-hx="gocode|${H(x.code)}">前往棲息地</button>`:'';
 function hxList(ctx){return ctx==='pub'?hxPubList(PUB.sp):hxAdminList();}
 (function(){if(typeof window==='undefined')return;
- LV_ORDER.unshift('ticket');LV_NAMES.ticket='車票';LV_TIP.ticket='探勘車票：可以撕下票根，打開海報';
+ LV_ORDER.unshift('ticket');LV_NAMES.ticket='車票';LV_TIP.ticket='探勘車票：可以撕下票根，直接前往養殖艙試用這個棲息地';
  
  const RH0=window.renderHab;if(typeof RH0==='function')window.renderHab=function(){const r=RH0.apply(this,arguments);try{hxMountAdmin();}catch(e){console.error(e);}return r;};
  if(typeof R_!=='undefined'&&typeof R_.hab==='function'){const RR=R_.hab;R_.hab=function(){const r=RR.apply(this,arguments);try{hxMountAdmin();}catch(e){console.error(e);}return r;};}
  
  if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('click',e=>{const b=e.target&&e.target.closest&&e.target.closest('[data-hx]');if(!b)return;e.preventDefault();const [a,v,c]=b.dataset.hx.split('|');const i=+v;
+  if(a==='gocode'){hxGoPod(v);return;}
   if(a==='sel'){const ctx=c||'pub';HX.sel[ctx]=i;const hero=b.closest('.hx-hero');if(!hero)return;hero.querySelectorAll('.hx-row').forEach(r=>r.setAttribute('aria-pressed',String(r===b)));const R=hero.querySelector('.hx-r');if(R){R.innerHTML=hxPanel(hxList(ctx),i,ctx);hxFlatFill(R);}return;}
-  if(a==='go'){const t=document.querySelector(`#pubview .hx-tk[data-hxt="${i}"]`);const L=hxList('pub');const x=L[i];const t2=t||(x&&document.querySelector(`#pubview .hx-tk[data-hxt="${(PUB.sp.habitats||[]).indexOf((PUB.sp.habitats||[]).find(h=>h.code===x.code))}"]`));
-   if(t2){t2.scrollIntoView({block:'center',behavior:'smooth'});t2.classList.remove('flash');void t2.offsetWidth;t2.classList.add('flash');}else if(x){const ix=(PUB.sp.habitats||[]).findIndex(h=>h.code===x.code);if(ix>=0)openCat(pubCatView('hab',PUB.sp.habitats[ix],PUB.sp),'',pubTpl('hab',PUB.sp.habitats[ix]),wmSrcPub);}return;}
+  if(a==='go'){const x=hxList('pub')[i];if(x)hxGoPod(x.code);return;}
   if(a==='tear'){const x=(PUB.sp&&PUB.sp.habitats||[])[i];if(!x)return;const tk=b.closest('.hx-tk');const first=!HX.visited.has(x.code);HX.visited.add(x.code);
-   if(tk&&first){tk.classList.add('vis','tearing');const btn=tk.querySelector('.hx-tear');if(btn)btn.textContent='再看一次 ↗';const hero=document.querySelector('#pubview .hx-hero');if(hero){const r=hero.querySelectorAll('.hx-row')[(hxPubList(PUB.sp).findIndex(h=>h.code===x.code))];const st=r&&r.querySelector('.hx-st');if(st&&!st.classList.contains('nw'))st.textContent='VISITED';}}
-   const red=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;setTimeout(()=>openCat(pubCatView('hab',x,PUB.sp),'',pubTpl('hab',x),wmSrcPub),first&&!red?650:0);return;}});
+   if(tk&&first){tk.classList.add('vis','tearing');const btn=tk.querySelector('.hx-tear');if(btn)btn.textContent='再次出發 →';const hero=document.querySelector('#pubview .hx-hero');if(hero){const r=hero.querySelectorAll('.hx-row')[(hxPubList(PUB.sp).findIndex(h=>h.code===x.code))];const st=r&&r.querySelector('.hx-st');if(st&&!st.classList.contains('nw'))st.textContent='VISITED';}}
+   const red=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;setTimeout(()=>hxGoPod(x.code),first&&!red?900:0);return;}});
  })();
 
 /* ================= 第 67 版：商品圖「代碼化」輪播（飾品與育種道具共用） ================= */
@@ -4608,19 +4617,19 @@ function axAdminData(){var f=ghRestGet("axAdminData");return new.target?Reflect.
 function axPubData(sp){const L=(typeof pubAccFor==='function'?pubAccFor(sp):[])||[];const slots=new Map();L.forEach(a=>(a.slots||[]).forEach(s=>slots.set(s.k||s,s.n||s.k||s)));let can='';try{can=ptryBar(sp);}catch(e){}
  return{L,names:L.map(a=>a.name||a.id).filter(Boolean),n:L.length,slots:slots.size,subs:((PUB.site&&PUB.site.accSub)||[]).filter(s=>L.some(a=>a.sub===s.id)).length,slotNames:[...slots.values()],kinds:axUniq(L.map(a=>a.kind)),
   cx:L.map(a=>{const v=pubCatView('acc',a,sp);return axCxItem(v.name,a.kind||'',v.raw,v.sil,v.img);}),
-  cta:can?`<button type="button" class="ax-go" data-ptry-open="">✦ 進入養殖艙</button>`:''};}
+  cta:can?`<button type="button" class="ax-go" data-ptry-open=""><span class="ax-gl">ENTER<small>前往試用</small></span><i aria-hidden="true">→</i></button>`:''};}
 function axHero(d,ctx){const id='ax-'+ctx;const i0=cxSet(id,d.cx);const n2=String(d.n).padStart(2,'0');const yr=new Date().getFullYear();
  const birds=[[8,22,1.1,0],[16,58,.7,-1.6],[24,30,.85,-3.1],[70,18,.75,-.8],[78,62,1,-2.4],[86,40,.6,-4]].map(([x,y,s,dl],i)=>axBird('ax-bird',`--x:${x}%;--y:${y}%;--s:${s};--dl:${dl}s;--i:${i}`)).join('');
  const rows=[['PIECES','件數',d.n],['SLOTS','穿戴位置',d.slots],['SERIES','子分類',d.subs]];
  const cal1=d.slotNames.length?d.slotNames:['Head','Neck','Ear','Tail','Wing','Back'];const cal2=d.kinds.length?d.kinds:['Wear','Color','Layer','Try on','Keep','Share'];
- const words=d.names.slice(0,14);const cur=d.cx[i0];
+ const cur=d.cx[i0];
  return`<section class="ax-hero${axEnter()}" aria-label="飾品總覽">
   <div class="ax-top cx-host" data-cxh="${id}">
    <div class="ax-globe" aria-hidden="true"><i></i></div>
    <div class="ax-tl"><span class="ax-num">${n2}</span><div class="ax-cal"><span class="ax-cal-k">Accessoire · 飾品</span><p>${cal1.map(x=>`<span>${H(x)}</span>`).join('')}</p><p>${cal2.map(x=>`<span>${H(x)}</span>`).join('')}</p></div></div>
    <div class="ax-dig" aria-label="Atelier No.${n2}">${['A','C','-',...n2].map((c,i)=>`<b style="--i:${i}"${c==='-'?' class="ax-dash"':''}>${H(c)}</b>`).join('')}</div>
    <div class="ax-ttl"><b>ATELIER</b> <i>atelier-${n2}</i><small>COLLECTION · ${d.n} PIECES<br>wear, color and layer every piece<br>on your own creature in the try-on room.</small></div>
-   <aside class="ax-col"><b class="ax-yr">${yr}</b><span class="ax-col-k">atelier</span><em>pieces</em><ul>${words.map((x,i)=>`<li data-cxi="${i}"${i===i0?' class="on"':''}>${H(x)}</li>`).join('')||'<li>—</li>'}</ul></aside>
+   <aside class="ax-col" aria-hidden="true"><span class="ax-birds">${[[12,14,.9,0],[46,36,.7,-2.2],[18,58,.8,-4.1],[52,78,.6,-1.1]].map(([x,y,s2,dl],i)=>axBird('ax-bird',`--x:${x}%;--y:${y}%;--s:${s2};--dl:${dl}s;--i:${i}`)).join('')}</span></aside>
    ${axStar('ax-s1','',true)}${axStar('ax-s2','',true)}${axStar('ax-s3','')}${axStar('ax-s5','',true)}${axStar('ax-s6','')}
   </div>
   <div class="ax-band"><i class="ax-dia ax-dia-t" aria-hidden="true"></i><i class="ax-dia ax-dia-b" aria-hidden="true"></i>
@@ -4630,7 +4639,7 @@ function axHero(d,ctx){const id='ax-'+ctx;const i0=cxSet(id,d.cx);const n2=Strin
     <button type="button" class="cx-scr ax-scr" data-cxgo="${id}|1" aria-label="字元化的飾品圖（點一下換下一件）">${cxPre(id)}</button>
     <div class="ax-cxcap"><button type="button" class="ax-nav" data-cxgo="${id}|-1" aria-label="上一件">‹</button><span class="cx-idx">${cxNo(i0,d.cx.length)}</span><b class="cx-name">${H(cur?cur.name:'—')}</b><button type="button" class="ax-nav" data-cxgo="${id}|1" aria-label="下一件">›</button></div>
     ${axStar('ax-s4','')}<span class="ax-birds" aria-hidden="true">${birds}</span></div>
-   <div class="ax-r"><div class="ax-ring"><span class="ax-rk">穿戴 · 配色 · 試戴</span>${d.names.slice(0,6).map((x,i)=>`<span style="--i:${i}">${H(x)}</span>`).join('')||'<span>Accessory</span>'}</div>${d.cta}</div>
+   <div class="ax-r">${d.cta?`<span class="ax-k">The Try-on Room</span><p class="ax-rt">Try on</p><p class="ax-zh">試 用 養 殖 艙</p>${d.cta}`:''}</div>
   </div>
   <div class="ax-bot"><span class="ax-mono">Accessoire · 飾品</span><span class="ax-sig">Atelier of Ornaments</span><span class="ax-mono">Wear · Color · Try on</span></div>
  </section>`;}
@@ -5419,15 +5428,18 @@ const PX_ACC=new WeakMap();
 function pxAccPix(){var f=ghRestGet("pxAccPix");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}pxAccPix.__rs=1;
 /* ================= 試穿間：標頭改版（和飾品標頭同一套）＋海報模式 ================= */
 const AXS='<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 0C54 34 66 46 100 50C66 54 54 66 50 100C46 66 34 54 0 50C34 46 46 34 50 0Z"/></svg>';
-function ptryModeTxt(){const OK=okCur();return typeof FARM!=='undefined'&&FARM.on?`${TERMS.shop}模式・全部原圖`:OK?`已解鎖・${(OK.owner||{}).name||OK.owner&&OK.owner.id||''}`:'預覽・有浮水印';}
+function ptryModeTxt(){var f=ghRestGet("ptryModeTxt");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}ptryModeTxt.__rs=1;
 /* 第 157 版：使用者要求分頁按鈕放大、放在預覽上方（示意圖位置），直覺又明顯 */
 function podTabsHtml(){return`<div class="pod-tabs pod-bigtabs" role="tablist" aria-label="養殖艙">${[['ind','個體','Creature'],['hab','棲息地','Habitat'],['pod','養殖艙','Pod']].map(([k,n,e])=>`<button type="button" role="tab" data-pod="tab|${k}" aria-selected="${!PST.on&&POD.tab===k}">${/* 第 153 版：目前選的個體、棲息地縮圖 */(()=>{const u=k==='ind'?POD.thInd:k==='hab'?((podHab()||{}).img||''):'';return u?`<img class="pod-tth" src="${H(u)}" alt="">`:'';})()}${n} <small>${e}</small></button>`).join('')}${/* 第 151 版：拍照改到右欄最下面（三個分頁都一樣） */''}<button type="button" class="pod-hudall" data-hud="*">收起介面</button></div>`;}
+/* 第 202 版：養殖艙右上角補插鑰匙（還沒解鎖、也不是${TERMS.shop}模式時，取代「預覽・有浮水印」；解鎖後就變回原本的狀態文字） */
+function podKeyMini(){if((typeof FARM!=='undefined'&&FARM.on)||okCur()||(typeof podShop==='function'&&podShop()))return'';
+ return`<form class="ptry-key" data-ptk="form" autocomplete="off"><span class="ptk-k">${TERMS.owner}鑰匙 · OWNER KEY</span><span class="ptk-m">預覽・有浮水印</span><span class="ptk-r"><input class="mono" data-ptk="key" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" aria-label="${TERMS.owner}鑰匙"><button type="submit" class="ptk-b"${OKV.busy?' disabled':''}>${OKV.busy?'解鎖中…':'解鎖'}</button></span>${OKV.err?`<span class="ptk-e" role="alert">${H(OKV.err)}</span>`:''}</form>`;}
 function axHead(){const b=ptryBody();/* 第 117 版：小房間素材 */const rm=pstRoomOn();const i=b||rm?pstInfo():null;const ch=i?pstChars(i):['F','R','-','0','1'];const L=pubTryAccs();
  const pills=ch.map(c=>c==='-'?'<i class="axh-dash"></i>':`<b>${H(c)}</b>`).join('');
  return`<div class="ptry-head axh"><div class="axh-blue"><span class="axh-num">${H(i?i.serial:'01')}</span><div class="axh-cal"><span class="axh-k">Breeding Pod · 養殖艙</span><span class="axh-who">${H(rm?pstRoomWho():b?ptryWho(b):'選擇生物後開始')}</span><span class="axh-days">Wear Color Layer Try on Keep Share</span></div>
   <h3 class="axh-t"><i>Breeding pod</i><small>養殖艙 · ${L.length} pieces</small></h3><div class="axh-pills" aria-hidden="true">${pills}</div><span class="axh-st s1">${AXS}</span><span class="axh-st s2">${AXS}</span><span class="axh-st s3">${AXS}</span></div>
   <div class="axh-dark"><span class="axh-yr">${new Date().getFullYear()}</span>${/* 第 157 版：個體、棲息地、養殖艙的分頁按鈕移到預覽上方、放大（podTabsHtml） */''}
-  ${/* 第 156 版 */podLinksHtml()}<span class="ptry-mode">${H(ptryModeTxt())}</span><button type="button" class="g mini ptry-x" data-ptry="close" aria-label="關閉">✕</button><span class="axh-st s4">${AXS}</span></div></div><div class="axh-band" aria-hidden="true"></div>`;}
+  ${/* 第 156 版 */podLinksHtml()}${podKeyMini()||`<span class="ptry-mode">${H(ptryModeTxt())}</span>`}<button type="button" class="g mini ptry-x" data-ptry="close" aria-label="關閉">✕</button><span class="axh-st s4">${AXS}</span></div></div><div class="axh-band" aria-hidden="true"></div>`;}
 function pstSide(){var f=ghRestGet("pstSide");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}pstSide.__rs=1;
 function pstShow(){var f=ghRestGet("pstShow");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}pstShow.__rs=1;
 /* 記住最後一次的元素清單（自由排版的按鈕用） */
@@ -9148,8 +9160,7 @@ function podSetPos(){var f=ghRestGet("podSetPos");return new.target?Reflect.cons
 /* ---- 畫：個體（觀察台）、棲息地、組合；動態＝像素版，靜態＝持有的原圖只畫一格 ---- */
 async function podLook(full){const b=ptryBody();if(!b)return null;const k=JSON.stringify([!!full,PTRY.src,b.id||'',b.pose||'',PTRY.bpal,(PTRY.psd&&PTRY.psd.name)||'',(PTRY.B.json&&PTRY.B.json.id)||'']);if(POD.lk&&POD.lkK===k)return POD.lk;const lk=await frLookFromBody(b,{full:!!full});POD.lk=lk;POD.lkK=k;return lk;}
 /* 沒有鑰匙（訪客）：用預設的小房間設定畫個體 */
-function podBare(fn){const run=MR_LOCK.then(async()=>{const keep=S;const paper=(PUB.sp&&PUB.sp.paper)||{};S={...S,room:{hab:{},tpls:[],gal:{}},looks:{poses:[],def:{},parts:(paper.parts||[]).map(x=>({id:'pt_'+x.k,key:x.k,n:x.n,al:x.al||[]})),migrated:1},inds:[],habitats:[]};
-  try{return await fn();}finally{S=keep;}});MR_LOCK=run.catch(()=>{});return run;}
+function podBare(){var f=ghRestGet("podBare");return new.target?Reflect.construct(f,arguments):f.apply(this,arguments);}podBare.__rs=1;
 /* 第 151 版：o＝{code, kind, noTpl}：畫之前換上飼主調的地面深度與擺動（podCamApply）；店主模式也排隊畫（暫時換 S） */
 function podCtx(fn,o){const run=o?()=>podCamApply(o,fn):fn;if(podShop())return o?podLock(run):fn();/* 第 167 版：訪客的個體分頁也用公開的房間設定（像素大小、調色），原本用內建預設（176）比持有者（後台 360）粗一倍 */if(mrRoomAll()&&(okCur()&&mrData()||o)){const h=podHab();if(h&&h.data)MR.hab=h.code;return mrWith(run,o);}return podBare(run);}
 /* 第 151 版：像素／原圖（live）與動態／靜態（anim）分開；原圖也能轉視角（只畫一格）；棲息地與養殖艙一律用立體畫法（yaw 至少 0.001°），拖曳視角時才有第 0 格的立體資料可以即時重畫 */
@@ -9410,6 +9421,12 @@ function podIndChips(){const b=ptryBody();const mine=okCur()?okMineList():[];con
 function podOwnerIdTxt(){if(podShop())return`${TERMS.owner} ID：—（${TERMS.shop}模式）`;const OK=okCur();if(!OK)return`${TERMS.owner} ID：訪客`;const w=OK.owner||{};return`${TERMS.owner} ID：${w.id||'—'}`;}
 function podLinksHtml(){const L=[['owner',podOwnerIdTxt()],['copy','@Vampiry all copyrights reserved'],['help','使用說明：這裡用來輸出、製作你專屬的角色卡']];
  return`<ul class="axh-links" aria-label="${H(TERMS.owner)}資訊、版權聲明、使用說明">${L.map(([k,t])=>`<li class="axh-ln axh-ln-${k}">${AXS}<span>${H(t)}</span></li>`).join('')}</ul>`;}
+
+/* 第 202 版：養殖艙右上角的鑰匙欄（解鎖後留在養殖艙，換成自己的個體） */
+(function(){if(typeof document==='undefined')return;
+ document.addEventListener('submit',async e=>{const fm=e.target&&e.target.closest&&e.target.closest('form[data-ptk="form"]');if(!fm)return;e.preventDefault();
+  const inp=fm.querySelector('[data-ptk="key"]');if(OKV.busy)return;OKV.err='';await okUnlockUI(inp?inp.value:'');});
+ })();
 /* ================= 第 163 版（2026-11-09）：未持有的商品原解析度＋雙層水印、未持有的棲息地立體預覽 ================= */
 /* 使用者要求：
    1. 不降低訪客或飼主看到的未持有個體、物品、棲息地的解析度；未持有的棲息地預設立體搖擺，但不能自己轉視角（持有者才可以）。
